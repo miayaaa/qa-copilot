@@ -302,7 +302,7 @@ def main():
                 help="Copy patterns and infer join keys from this table"
             )
 
-            if st.button("Generate", use_container_width=True, disabled=not api_key):
+            if st.button("Generate", key="btn_generate", use_container_width=True, disabled=not api_key):
                 if schema_input.strip():
                     with st.spinner("Generating..."):
                         try:
@@ -322,7 +322,7 @@ def main():
                 try:
                     parsed = json.loads(st.session_state.generated_schema)
                     table_name = parsed.get("table_name", "NEW_TABLE")
-                    if st.button("Save to tables/", use_container_width=True):
+                    if st.button("Save to tables/", key="btn_save_schema", use_container_width=True):
                         filepath = save_schema(table_name, st.session_state.generated_schema)
                         st.success(f"Saved: {filepath}")
                         st.session_state.generated_schema = None
