@@ -1,0 +1,317 @@
+{
+  "table_name": "REFINED.DS_YT_BUSINESS_EVENTS",
+  "table_grain": "one row per processed business event in wallet event log",
+  "description": "Wallet Business Event fact table from EventBridge for audit, reconciliation, and campaign/offer tracking",
+  "data_architecture": {
+    "grain_definition": "One row per unique business event processed through EventBridge for a wallet",
+    "primary_key": "BUSINESS_EVENT_KEY",
+    "natural_key": "METADATA_CORRELATION_ID + EVENTBRIDGE_ID + EVENT_TIMESTAMP"
+  },
+  "columns": {
+    "Event_Identifiers": {
+      "BUSINESS_EVENT_KEY": {
+        "type": "VARCHAR",
+        "desc": "Primary key for business event record"
+      },
+      "EVENT_ID": {
+        "type": "VARCHAR",
+        "desc": "Source event identifier"
+      },
+      "EVENTBRIDGE_ID": {
+        "type": "VARCHAR",
+        "desc": "EventBridge unique event identifier for traceability"
+      },
+      "APPLICATION_ID": {
+        "type": "VARCHAR",
+        "desc": "Source application that generated the event"
+      }
+    },
+    "Event_Status_and_Type": {
+      "EVENT_TYPE": {
+        "type": "VARCHAR",
+        "desc": "Category of business event (e.g., campaign, offer, balance)"
+      },
+      "EVENT_STATUS": {
+        "type": "VARCHAR",
+        "desc": "Processing status of the event"
+      },
+      "EVENT_DETAIL": {
+        "type": "VARCHAR",
+        "desc": "Additional detail or reason for the event"
+      },
+      "METADATA_EVENT_TYPE": {
+        "type": "VARCHAR",
+        "desc": "Event type from metadata payload"
+      },
+      "METADATA_STATUS": {
+        "type": "VARCHAR",
+        "desc": "Event status from metadata payload"
+      }
+    },
+    "Event_Timestamps": {
+      "EVENT_TIMESTAMP": {
+        "type": "DATE",
+        "desc": "Business event occurrence timestamp"
+      },
+      "EVENTBRIDGE_TIMESTAMP": {
+        "type": "DATE",
+        "desc": "EventBridge processing timestamp"
+      },
+      "LCF_LOAD_TIMESTAMP": {
+        "type": "DATE",
+        "desc": "Timestamp when record loaded to data lake"
+      }
+    },
+    "Wallet_Links": {
+      "WALLET_ID": {
+        "type": "VARCHAR",
+        "desc": "Unique wallet identifier; links to wallet customer table",
+        "pii": "YES"
+      },
+      "WALLET_MEMBER_KEY": {
+        "type": "VARCHAR",
+        "desc": "Wallet member key for customer link and traceability"
+      },
+      "WALLET_CUSTOMER_KEY": {
+        "type": "VARCHAR",
+        "desc": "Customer key linked to wallet"
+      },
+      "WALLET_SCORE_KEY": {
+        "type": "VARCHAR",
+        "desc": "Link to wallet scores/eligibility outputs"
+      },
+      "WALLET_TYPE": {
+        "type": "VARCHAR",
+        "desc": "Classification of wallet (customer or non-customer)"
+      },
+      "WALLET_ID_TRANSFEREE": {
+        "type": "VARCHAR",
+        "desc": "Receiving wallet ID in balance transfer event"
+      },
+      "PREVIOUS_WALLET_ID": {
+        "type": "VARCHAR",
+        "desc": "Prior wallet ID if wallet migrated or reassigned"
+      }
+    },
+    "Account_and_User": {
+      "BILLING_ACCOUNT_NUMBER": {
+        "type": "VARCHAR",
+        "desc": "Billing account linked to wallet event",
+        "pii": "YES"
+      },
+      "USER_ID": {
+        "type": "VARCHAR",
+        "desc": "User identifier for the wallet interaction",
+        "pii": "YES"
+      },
+      "AGENT_EMAIL": {
+        "type": "VARCHAR",
+        "desc": "Agent email if event triggered by support agent",
+        "pii": "YES"
+      }
+    },
+    "Campaign_Details": {
+      "CAMPAIGN_ID": {
+        "type": "VARCHAR",
+        "desc": "Unique campaign identifier"
+      },
+      "CAMPAIGN_NAME": {
+        "type": "VARCHAR",
+        "desc": "Campaign display name"
+      },
+      "CAMPAIGN_TYPE": {
+        "type": "VARCHAR",
+        "desc": "Campaign classification (promotion, loyalty, etc.)"
+      },
+      "CAMPAIGN_CATEGORY": {
+        "type": "VARCHAR",
+        "desc": "Campaign business category grouping"
+      },
+      "CAMPAIGN_START_DATE": {
+        "type": "DATE",
+        "desc": "Campaign effective start date"
+      },
+      "CAMPAIGN_END_DATE": {
+        "type": "DATE",
+        "desc": "Campaign end or expiry date"
+      },
+      "CAMPAIGN_SAVEABLE_FLAG": {
+        "type": "VARCHAR",
+        "enum": ["Y", "N"],
+        "desc": "Whether campaign offer can be saved by customer"
+      },
+      "CAMPAIGN_ELIGIBILITY_RULES": {
+        "type": "VARCHAR",
+        "desc": "Rules determining customer eligibility for campaign"
+      },
+      "CAMPAIGN_ASSIGNMENT_RULES": {
+        "type": "VARCHAR",
+        "desc": "Rules for assigning campaign to eligible customers"
+      },
+      "CAMPAIGN_FILTERS": {
+        "type": "VARCHAR",
+        "desc": "Filter criteria applied during campaign targeting"
+      }
+    },
+    "Offer_Details": {
+      "OFFER_AMOUNT": {
+        "type": "NUMERIC",
+        "desc": "Monetary value of offer"
+      },
+      "OFFER_REDEEM_AMOUNT": {
+        "type": "NUMERIC",
+        "desc": "Amount redeemed when offer is used"
+      },
+      "OFFER_NAME": {
+        "type": "VARCHAR",
+        "desc": "Offer display name or description"
+      },
+      "OFFER_REASON": {
+        "type": "VARCHAR",
+        "desc": "Business reason for issuing the offer"
+      },
+      "OFFER_DETAILS": {
+        "type": "VARCHAR",
+        "desc": "Additional details and conditions for offer"
+      },
+      "OFFER_TERMS": {
+        "type": "VARCHAR",
+        "desc": "Terms and conditions applicable to offer"
+      },
+      "OFFER_EXPIRY_DATE": {
+        "type": "DATE",
+        "desc": "Last date offer can be redeemed"
+      },
+      "OFFER_DISTRIBUTION_ID": {
+        "type": "VARCHAR",
+        "desc": "Unique identifier for offer distribution batch"
+      },
+      "OFFER_SAVED_STATUS": {
+        "type": "VARCHAR",
+        "desc": "Current saved/redeemed status of offer"
+      }
+    },
+    "Balance_Tracking": {
+      "CONFIRMED_BALANCE_BEFORE": {
+        "type": "NUMERIC",
+        "desc": "Confirmed balance before event transaction"
+      },
+      "CONFIRMED_BALANCE_NEW": {
+        "type": "NUMERIC",
+        "desc": "Confirmed balance after event transaction"
+      },
+      "CONFIRMED_BALANCE_BEFORE_TRADEIN": {
+        "type": "NUMERIC",
+        "desc": "Confirmed balance before trade-in deduction"
+      },
+      "CONFIRMED_BALANCE_NEW_TRADEIN": {
+        "type": "NUMERIC",
+        "desc": "Confirmed balance after trade-in adjustment"
+      },
+      "CONDITIONAL_BALANCE_BEFORE": {
+        "type": "NUMERIC",
+        "desc": "Conditional/pending balance before event"
+      },
+      "CONDITIONAL_BALANCE_NEW": {
+        "type": "NUMERIC",
+        "desc": "Conditional/pending balance after event"
+      },
+      "CONDITIONAL_FLAG": {
+        "type": "VARCHAR",
+        "enum": ["Y", "N"],
+        "desc": "Whether balance is conditional or confirmed"
+      },
+      "WALLET_CONDITIONAL_AMOUNT": {
+        "type": "NUMERIC",
+        "desc": "Total conditional amount in wallet"
+      },
+      "WALLET_EARNED_AMOUNT": {
+        "type": "NUMERIC",
+        "desc": "Total earned amount in wallet"
+      },
+      "BALANCE_EXPIRY_DATE": {
+        "type": "DATE",
+        "desc": "Expiry date for balance validity"
+      }
+    },
+    "Balance_Transfer": {
+      "BALANCE_TRANSFERRED": {
+        "type": "NUMERIC",
+        "desc": "Amount transferred in balance transfer event"
+      },
+      "TRADE_IN_FLAG": {
+        "type": "VARCHAR",
+        "enum": ["Y", "N"],
+        "desc": "Whether event involves trade-in deduction"
+      }
+    },
+    "Device_and_Top_Up": {
+      "DEVICE_MODEL_LIST": {
+        "type": "VARCHAR",
+        "desc": "List of device models eligible or involved in event"
+      },
+      "DEVICE_BRAND_LIST": {
+        "type": "VARCHAR",
+        "desc": "List of device brands eligible or involved in event"
+      },
+      "DEVICE_PLANS_LIST": {
+        "type": "VARCHAR",
+        "desc": "List of device plans applicable to campaign/offer"
+      },
+      "DEVICE_TERMS_LIST": {
+        "type": "VARCHAR",
+        "desc": "Device contract terms associated with event"
+      },
+      "TOP_UP_TARGET": {
+        "type": "NUMERIC",
+        "desc": "Target top-up amount for promotion"
+      },
+      "MIN_OFFER": {
+        "type": "NUMERIC",
+        "desc": "Minimum offer amount threshold"
+      },
+      "MAX_OFFER": {
+        "type": "NUMERIC",
+        "desc": "Maximum offer amount threshold"
+      }
+    },
+    "Notification": {
+      "NOTIFICATION_MESSAGE_ID": {
+        "type": "VARCHAR",
+        "desc": "Unique identifier for notification message sent"
+      },
+      "NOTIFICATON_MESSAGE_CONTENT": {
+        "type": "VARCHAR",
+        "desc": "Text content of notification message to customer"
+      }
+    },
+    "Metadata_and_Lineage": {
+      "METADATA_DOMAIN": {
+        "type": "VARCHAR",
+        "desc": "Domain classification from event metadata"
+      },
+      "METADATA_SERVICE": {
+        "type": "VARCHAR",
+        "desc": "Microservice that generated the event"
+      },
+      "METADATA_CORRELATION_ID": {
+        "type": "VARCHAR",
+        "desc": "Correlation ID for end-to-end event traceability"
+      },
+      "METADATA_EVENT_ID": {
+        "type": "VARCHAR",
+        "desc": "Event ID from metadata payload"
+      },
+      "METADATA_EVENT_TIMESTAMP": {
+        "type": "DATE",
+        "desc": "Event timestamp from metadata payload"
+      }
+    },
+    "Load_Control": {
+      "LCF_LOAD_ID": {
+        "type": "VARCHAR",
+        "desc": "Load control framework batch identifier"
+      }
+    }
+  }
+}

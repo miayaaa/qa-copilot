@@ -1,0 +1,124 @@
+{
+  "table_name": "modelled.ds_yt_wallet_non_customer",
+  "table_grain": "wallet_member",
+  "description": "Non-One-NZ customer wallet members from microsite registration or Dosh customer base with One NZ service eligibility status",
+  "data_architecture": {
+    "grain_definition": "One row per wallet member who is NOT a One NZ customer but holds an active wallet (origin: microsite self-registration or Dosh customer)",
+    "primary_key": "WALLET_MEMBER_KEY",
+    "natural_key": "WALLET_ID, WALLET_CUSTOMER_KEY",
+    "join_keys": [
+      "WALLET_CUSTOMER_KEY (to customer/wallet master)",
+      "WALLET_MEMBER_KEY (wallet dimension)",
+      "BILLING_ACCOUNT_NUMBER (One NZ account, if service-linked)",
+      "SERVICE_ID_SHA2 (One NZ service, if applicable)"
+    ]
+  },
+  "columns": {
+    "Wallet Identification": {
+      "WALLET_MEMBER_KEY": {
+        "type": "VARCHAR",
+        "desc": "Unique wallet member identifier (primary key)"
+      },
+      "WALLET_CUSTOMER_KEY": {
+        "type": "VARCHAR",
+        "desc": "Wallet customer reference key",
+        "pii": "YES"
+      },
+      "WALLET_ID": {
+        "type": "VARCHAR",
+        "desc": "Unique wallet identifier (natural key component)",
+        "pii": "YES"
+      },
+      "WALLET_TYPE": {
+        "type": "VARCHAR",
+        "desc": "Wallet classification (e.g., microsite, dosh, partner)"
+      }
+    },
+    "One NZ Service Linkage": {
+      "BILLING_ACCOUNT_NUMBER": {
+        "type": "VARCHAR",
+        "desc": "One NZ billing account number, if wallet linked to service",
+        "pii": "YES"
+      },
+      "SERVICE_ID_SHA2": {
+        "type": "VARCHAR",
+        "desc": "SHA2 hash of One NZ service ID, if applicable"
+      },
+      "SERVICE_STATUS_NAME": {
+        "type": "VARCHAR",
+        "desc": "One NZ service status at load time (e.g., active, suspended, closed)"
+      },
+      "BA_COUNT_ELIGIBLE_SERVICE_CMGM": {
+        "type": "INT",
+        "desc": "Count of eligible services under billing account"
+      }
+    },
+    "Wallet Eligibility & Status": {
+      "WALLET_ELIGIBILITY_FLAG": {
+        "type": "VARCHAR",
+        "desc": "Wallet eligibility status",
+        "enum": ["Y", "N"]
+      },
+      "WALLET_ELIGIBILITY_RELEASES": {
+        "type": "VARCHAR",
+        "desc": "Wallet eligibility release version or date"
+      },
+      "WALLET_DELETE_FLAG": {
+        "type": "VARCHAR",
+        "desc": "Wallet soft-delete indicator",
+        "enum": ["Y", "N"]
+      }
+    },
+    "Origin & Segmentation": {
+      "MICROSITE_FLAG": {
+        "type": "VARCHAR",
+        "desc": "Microsite self-registration origin indicator",
+        "enum": ["Y", "N"]
+      },
+      "DOSH_CUSTOMER_FLAG": {
+        "type": "VARCHAR",
+        "desc": "Dosh customer indicator (customer outside One NZ)",
+        "enum": ["Y", "N"]
+      },
+      "CUSTOMER_SEGMENT": {
+        "type": "VARCHAR",
+        "desc": "One NZ customer segment classification at load time"
+      }
+    },
+    "Wallet Activity & Offers": {
+      "GIVEAWAY_AMOUNT": {
+        "type": "NUMERIC",
+        "desc": "Giveaway or promotional amount credited to wallet"
+      },
+      "DEVICE_OFFER": {
+        "type": "VARCHAR",
+        "desc": "Device offer associated with wallet member"
+      },
+      "OFFNET_NC_FLAG": {
+        "type": "VARCHAR",
+        "desc": "Off-network non-customer flag indicator",
+        "enum": ["Y", "N"]
+      },
+      "MOBILE_ME_FLAG": {
+        "type": "VARCHAR",
+        "desc": "Mobile Me program participation indicator",
+        "enum": ["Y", "N"]
+      }
+    },
+    "Metadata": {
+      "LCF_LOAD_TIMESTAMP": {
+        "type": "TIMESTAMP",
+        "desc": "Data load completion timestamp (UTC)"
+      },
+      "LCF_LOAD_ID": {
+        "type": "VARCHAR",
+        "desc": "Data load batch/process identifier"
+      }
+    }
+  },
+  "business_notes": {
+    "non_customer_definition": "NOT a One NZ customer in One NZ customer context. Origins: (1) Microsite pre-customer / self-registered via MICROSITE_FLAG=Y, (2) Dosh customer via DOSH_CUSTOMER_FLAG=Y. May hold eligible service linkage to One NZ account despite non-customer status.",
+    "eligibility_tracking": "WALLET_ELIGIBILITY_FLAG + WALLET_ELIGIBILITY_RELEASES govern wallet features; WALLET_DELETE_FLAG marks logical deletion.",
+    "service_linkage_optional": "BILLING_ACCOUNT_NUMBER and SERVICE_ID_SHA2 may be NULL if wallet has no One NZ service association at load time."
+  }
+}
