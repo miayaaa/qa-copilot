@@ -16,6 +16,7 @@ SKILLS_DIR = Path(".claude/skills/qa-sql-mentor")
 
 # --- Data Loading ---
 
+
 def load_all_schemas() -> dict:
     """Load all YAML schema files and extract table info."""
     schemas = {}
@@ -87,19 +88,22 @@ def format_selected_schema(schemas: dict, selected_tables: list) -> str:
             info = schemas[table_name]
             parts.append(f"## {table_name}")
             parts.append(f"Source: `{info['source_file']}`\n")
-            parts.append(yaml.dump(info["definition"], default_flow_style=False, sort_keys=False))
+            parts.append(
+                yaml.dump(info["definition"], default_flow_style=False, sort_keys=False))
 
             # Add relevant relationships
             for rel in info["relationships"]:
                 if table_name in rel["from"] or table_name in rel["to"]:
-                    parts.append(f"Relationship: {rel['from']} -> {rel['to']} ({rel['type']})")
+                    parts.append(
+                        f"Relationship: {rel['from']} -> {rel['to']} ({rel['type']})")
 
             # Add business rules (deduplicated)
             for rule in info["business_rules"]:
                 rule_key = rule["name"]
                 if rule_key not in included_rules:
                     included_rules.add(rule_key)
-                    parts.append(f"Business Rule [{rule['name']}]: {rule['description']}")
+                    parts.append(
+                        f"Business Rule [{rule['name']}]: {rule['description']}")
 
             parts.append("")
 
@@ -128,10 +132,11 @@ MAX_HISTORY = 20  # messages
 
 def chat_with_claude(client: Anthropic, system_blocks: list, messages: list) -> str:
     """Send chat to Claude and return response."""
-    trimmed = messages[-MAX_HISTORY:] if len(messages) > MAX_HISTORY else messages
+    trimmed = messages[-MAX_HISTORY:] if len(
+        messages) > MAX_HISTORY else messages
 
     response = client.messages.create(
-        model="claude-sonnet-4-20250514",
+        model="claude-haiku-4-5-20251001",  # "claude-sonnet-4-20250514",
         max_tokens=4096,
         system=system_blocks,
         messages=trimmed
@@ -212,7 +217,8 @@ def main():
                         cols = defn.get("columns", {})
                         if isinstance(cols, dict):
                             # New format: grouped columns
-                            col_count = sum(len(group) for group in cols.values() if isinstance(group, dict))
+                            col_count = sum(
+                                len(group) for group in cols.values() if isinstance(group, dict))
                         else:
                             # Old format: list of columns
                             col_count = len(cols)
@@ -237,7 +243,8 @@ def main():
         return
 
     # Display selected context
-    st.caption(f"Current context: {', '.join(st.session_state.selected_tables)}")
+    st.caption(
+        f"Current context: {', '.join(st.session_state.selected_tables)}")
 
     # Chat history
     for msg in st.session_state.messages:
@@ -258,12 +265,16 @@ def main():
             with st.spinner("Thinking..."):
                 try:
                     client = Anthropic(api_key=api_key)
-                    schema_text = format_selected_schema(all_schemas, st.session_state.selected_tables)
-                    system_blocks = build_system_prompt(skill_prompt, reference, schema_text)
+                    schema_text = format_selected_schema(
+                        all_schemas, st.session_state.selected_tables)
+                    system_blocks = build_system_prompt(
+                        skill_prompt, reference, schema_text)
 
-                    response = chat_with_claude(client, system_blocks, st.session_state.messages)
+                    response = chat_with_claude(
+                        client, system_blocks, st.session_state.messages)
 
-                    st.session_state.messages.append({"role": "assistant", "content": response})
+                    st.session_state.messages.append(
+                        {"role": "assistant", "content": response})
                     st.rerun()  # Rerun to render with copy buttons
 
                 except Exception as e:
