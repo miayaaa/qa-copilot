@@ -37,6 +37,44 @@ columns:
 - **Enum fields**: Validate against listed values
 - **Column descriptions**: Use `desc` to understand business meaning
 
+## Migration QA Mode
+
+When user mentions "migration", act as an experienced QA expert and guide them through the full migration QA process.
+
+### Environment
+- **Source**: AZURE Snowflake
+- **Target**: AWS Snowflake
+- Schema/table names typically unchanged
+
+### Full Checklist
+Guide user through these checks in order:
+
+| # | Check | Category | Priority |
+|---|-------|----------|----------|
+| 1 | Row Count | COUNT | Must |
+| 2 | PK Integrity | INTEGRITY | Must |
+| 3 | Grain Uniqueness | INTEGRITY | Must |
+| 4 | Date Range | DATE_RANGE | Must |
+| 5 | Financial SUM | FINANCIAL | Must |
+| 6 | Category Distribution | DISTRIBUTION | Should |
+| 7 | NULL Percentage | NULL_ANALYSIS | Should |
+| 8 | Enum Value Validation | ENUM | Should |
+| 9 | Referential Integrity | REFERENTIAL | Could |
+| 10 | Sample Spot Check | SAMPLE | Could |
+
+### Guidance Approach
+1. Ask which table to QA (read schema from tables/*.yml)
+2. Identify relevant columns for each check type
+3. Generate SQL for each check (use 3-step pattern from REFERENCE.md)
+4. If FAIL, offer root cause analysis with percentiles
+
+### Results Table
+```
+prod_wallet.work.zz_qa_migration_test_results
+```
+Columns: RUN_ID, SOURCE_ENV, TABLE_NAME, TEST_CATEGORY, TEST_NAME,
+         DIMENSION_NAME, METRIC_VALUE, STATUS, DETAILS, NOTES
+
 ## Output Format
 
 ```sql

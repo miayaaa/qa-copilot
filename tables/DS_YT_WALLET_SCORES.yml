@@ -1,0 +1,84 @@
+{
+  "table_name": "MODELLED.DS_YT_WALLET_SCORES",
+  "table_grain": "WALLET_MEMBER_KEY",
+  "description": "ML prediction scores for wallet members. Contains churn, upsell, device replacement, CLV, and credit risk predictions for Mobile On-Account and Prepay customers.",
+  "data_architecture": {
+    "grain_definition": "WALLET_MEMBER_KEY uniquely identifies a wallet member's score record.",
+    "scd_logic": "SCD2 tracks score changes over time. Use CURRENT_RECORD_IND = 1 for latest scores.",
+    "primary_key": "WALLET_SCORE_KEY",
+    "natural_key": "WALLET_ID"
+  },
+  "relationships": [
+    {
+      "from": "DS_YT_WALLET_SCORES.WALLET_MEMBER_KEY",
+      "to": "DS_YT_WALLET_CUSTOMER.WALLET_MEMBER_KEY",
+      "type": "many_to_one"
+    }
+  ],
+  "columns": {
+    "Identifiers_and_SCD2": {
+      "WALLET_SCORE_KEY": {"type": "VARCHAR", "pk": true, "desc": "Primary key for score record version."},
+      "WALLET_MEMBER_KEY": {"type": "VARCHAR", "uniqueness": "UNIQUE_GRAIN", "desc": "Join key to DS_YT_WALLET_CUSTOMER."},
+      "WALLET_ID": {"type": "VARCHAR", "pii": "YES", "desc": "Wallet identifier (MSISDN or Username)."},
+      "BILLING_ACCOUNT_NUMBER": {"type": "VARCHAR", "pii": "YES", "desc": "Customer billing account."},
+      "VERSION_NO": {"type": "NUMBER", "desc": "Sequential version per member."},
+      "CURRENT_RECORD_IND": {"type": "NUMBER", "desc": "SCD2: 1=Current, 0=Historical."},
+      "RECORD_START_DATE_TIME": {"type": "DATETIME", "desc": "Effective start time for this version."},
+      "RECORD_END_DATE_TIME": {"type": "DATETIME", "desc": "Effective end time for this version."},
+      "LCF_REGEN_FLAG": {"type": "VARCHAR", "desc": "Regeneration indicator."},
+      "LCF_LOAD_TIMESTAMP": {"type": "DATETIME", "desc": "System load time."},
+      "LCF_LOAD_ID": {"type": "VARCHAR", "desc": "ETL load batch identifier."}
+    },
+    "Mobile_OnAccount_Consumer_Churn": {
+      "MOB_OA_CONSUM_CHURN_PREDICT_DATE": {"type": "DATE", "desc": "Model prediction date for churn."},
+      "MOB_OA_CONSUM_CHURN_SCORE": {"type": "NUMERIC", "desc": "Churn probability score (0-1)."},
+      "MOB_OA_CONSUM_CHURN_SEGMENT": {"type": "VARCHAR", "desc": "Churn risk segment (e.g., High, Medium, Low)."}
+    },
+    "Mobile_OnAccount_Consumer_Upsell": {
+      "MOB_OA_CONSUM_UPSELL_IFP_PREDICT_DATE": {"type": "DATE", "desc": "Model prediction date for IFP upsell."},
+      "MOB_OA_CONSUM_UPSELL_IFP_SCORE": {"type": "NUMERIC", "desc": "IFP upsell propensity score."},
+      "MOB_OA_CONSUM_UPSELL_IFP_SEGMENT": {"type": "VARCHAR", "desc": "IFP upsell segment."}
+    },
+    "Mobile_OnAccount_Consumer_DeviceReplacement": {
+      "MOB_OA_CONSUM_DR_PREDICT_DATE": {"type": "DATE", "desc": "Device replacement prediction date."},
+      "MOB_OA_CONSUM_DR_SCORE": {"type": "NUMERIC", "desc": "Device replacement propensity score."},
+      "MOB_OA_CONSUM_DR_SEGMENT": {"type": "VARCHAR", "desc": "Device replacement segment."},
+      "MOB_OA_CONSUM_DR_APPLE_PREDICT_DATE": {"type": "DATE", "desc": "Apple device propensity prediction date."},
+      "MOB_OA_CONSUM_DR_APPLE_SCORE": {"type": "NUMERIC", "desc": "Apple device propensity score."},
+      "MOB_OA_CONSUM_DR_APPLE_SEGMENT": {"type": "VARCHAR", "desc": "Apple device segment."},
+      "MOB_OA_CONSUM_DR_SAMSUNG_PREDICT_DATE": {"type": "DATE", "desc": "Samsung device propensity prediction date."},
+      "MOB_OA_CONSUM_DR_SAMSUNG_SCORE": {"type": "NUMERIC", "desc": "Samsung device propensity score."},
+      "MOB_OA_CONSUM_DR_SAMSUNG_SEGMENT": {"type": "VARCHAR", "desc": "Samsung device segment."}
+    },
+    "Mobile_OnAccount_Consumer_CLV": {
+      "MOB_OA_CONSUM_CLV_PREDICT_DATE": {"type": "DATE", "desc": "CLV prediction date."},
+      "MOB_OA_CONSUM_CLV_AMOUNT": {"type": "NUMERIC", "desc": "Predicted customer lifetime value."},
+      "MOB_OA_CONSUM_CLV_SEGMENT": {"type": "VARCHAR", "desc": "CLV segment (e.g., High, Medium, Low)."}
+    },
+    "Mobile_OnAccount_Consumer_CreditRisk": {
+      "MOB_OA_CONSUM_CREDIT_RISK_PREDICT_DATE": {"type": "DATE", "desc": "Credit risk prediction date."},
+      "MOB_OA_CONSUM_CREDIT_RISK_SCORE": {"type": "NUMERIC", "desc": "Credit risk score."},
+      "MOB_OA_CONSUM_CREDIT_RISK_SEGMENT": {"type": "VARCHAR", "desc": "Credit risk segment."}
+    },
+    "Mobile_Prepay_Scores": {
+      "MOB_PP_CHURN_PREDICT_DATE": {"type": "DATE", "desc": "Prepay churn prediction date."},
+      "MOB_PP_CHURN_SCORE": {"type": "NUMERIC", "desc": "Prepay churn probability score."},
+      "MOB_PP_CHURN_SEGMENT": {"type": "VARCHAR", "desc": "Prepay churn segment."},
+      "MOB_PP_IFP_PREDICT_DATE": {"type": "DATE", "desc": "Prepay IFP prediction date."},
+      "MOB_PP_IFP_SCORE": {"type": "NUMERIC", "desc": "Prepay IFP propensity score."},
+      "MOB_PP_IFP_SEGMENT": {"type": "VARCHAR", "desc": "Prepay IFP segment."},
+      "MOB_PP_DR_PREDICT_DATE": {"type": "DATE", "desc": "Prepay device replacement prediction date."},
+      "MOB_PP_DR_SCORE": {"type": "NUMERIC", "desc": "Prepay device replacement score."},
+      "MOB_PP_DR_SEGMENT": {"type": "VARCHAR", "desc": "Prepay device replacement segment."},
+      "MOB_PP_CLV_PREDICT_DATE": {"type": "DATE", "desc": "Prepay CLV prediction date."},
+      "MOB_PP_CLV_AMOUNT": {"type": "NUMERIC", "desc": "Prepay customer lifetime value."},
+      "MOB_PP_CLV_SEGMENT": {"type": "VARCHAR", "desc": "Prepay CLV segment."}
+    },
+    "Experiment": {
+      "EXPERIMENT_PREDICT_DATE": {"type": "DATE", "desc": "Experiment prediction date."},
+      "EXPERIMENT_SEGMENT": {"type": "VARCHAR", "desc": "Assigned experiment segment."},
+      "EXPERIMENT_SEGMENT_VERSION": {"type": "VARCHAR", "desc": "Experiment version identifier."},
+      "EXPERIMENT_EXPIRY_DATE": {"type": "DATE", "desc": "Experiment assignment expiry date."}
+    }
+  }
+}

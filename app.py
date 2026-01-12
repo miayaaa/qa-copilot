@@ -3,6 +3,7 @@ QA Copilot - AI-powered SQL Assistant for QA Engineers
 Interactive UI for schema-aware SQL generation with QA mentoring
 """
 
+import json
 import os
 from pathlib import Path
 
@@ -13,6 +14,7 @@ from anthropic import Anthropic
 # Configuration
 TABLES_DIR = Path("tables")
 SKILLS_DIR = Path(".claude/skills/qa-sql-mentor")
+SCHEMA_GEN_SKILL = Path(".claude/skills/schema-generator/SKILL.md")
 
 # --- Data Loading ---
 
@@ -125,6 +127,60 @@ def build_system_prompt(skill_prompt: str, reference: str, schema_text: str) -> 
     ]
 
 
+# --- Schema Generator ---
+
+def load_schema_gen_prompt() -> str:
+    """Load schema generator skill prompt."""
+    if SCHEMA_GEN_SKILL.exists():
+        with open(SCHEMA_GEN_SKILL, "r", encoding="utf-8") as f:
+            content = f.read()
+            if content.startswith("---"):
+                parts = content.split("---", 2)
+                if len(parts) >= 3:
+                    return parts[2].strip()
+    return ""
+
+
+def generate_schema(client: Anthropic, user_input: str, ref_schema: str = "") -> str:
+    """Generate table schema JSON using Claude."""
+    skill_prompt = load_schema_gen_prompt()
+
+    context = f"Generate a table schema based on this input:\n\n{user_input}"
+    if ref_schema:
+        context += f"\n\n---\nReference table for patterns and join keys:\n{ref_schema}"
+
+    response = client.messages.create(
+        model="claude-haiku-4-5-20251001",
+        max_tokens=4096,
+        system=[{"type": "text", "text": skill_prompt}],
+        messages=[{"role": "user", "content": context}]
+    )
+    return response.content[0].text
+
+
+def extract_json_from_response(text: str) -> str:
+    """Extract JSON block from Claude response."""
+    if "```json" in text:
+        start = text.find("```json") + 7
+        end = text.find("```", start)
+        return text[start:end].strip()
+    if "```" in text:
+        start = text.find("```") + 3
+        end = text.find("```", start)
+        return text[start:end].strip()
+    return text.strip()
+
+
+def save_schema(table_name: str, schema_json: str) -> Path:
+    """Save schema JSON to tables directory."""
+    TABLES_DIR.mkdir(exist_ok=True)
+    filename = table_name.split(".")[-1] + ".yml"
+    filepath = TABLES_DIR / filename
+    with open(filepath, "w", encoding="utf-8") as f:
+        f.write(schema_json)
+    return filepath
+
+
 # --- Claude API ---
 
 MAX_HISTORY = 20  # messages
@@ -152,6 +208,8 @@ def init_session():
         st.session_state.messages = []
     if "selected_tables" not in st.session_state:
         st.session_state.selected_tables = []
+    if "generated_schema" not in st.session_state:
+        st.session_state.generated_schema = None
 
 
 def render_message(role: str, content: str):
@@ -227,6 +285,50 @@ def main():
                         st.caption(f"{col_count} columns | {desc}...")
         else:
             st.info("No schema files found. Add .yml files to tables/ directory")
+
+        st.divider()
+
+        # Schema Generator
+        with st.expander("📝 Generate Schema", expanded=False):
+            schema_input = st.text_area(
+                "Column names or business context",
+                height=100,
+                placeholder="Paste column names (comma/newline separated)\nor describe the table purpose..."
+            )
+
+            ref_table = st.selectbox(
+                "Reference table (optional)",
+                options=["None"] + list(all_schemas.keys()),
+                help="Copy patterns and infer join keys from this table"
+            )
+
+            if st.button("Generate", use_container_width=True, disabled=not api_key):
+                if schema_input.strip():
+                    with st.spinner("Generating..."):
+                        try:
+                            client = Anthropic(api_key=api_key)
+                            ref_schema = ""
+                            if ref_table != "None":
+                                ref_schema = json.dumps(
+                                    all_schemas[ref_table]["definition"], indent=2)
+                            response = generate_schema(client, schema_input, ref_schema)
+                            st.session_state.generated_schema = extract_json_from_response(response)
+                        except Exception as e:
+                            st.error(f"Error: {e}")
+
+            # Preview and save
+            if st.session_state.generated_schema:
+                st.code(st.session_state.generated_schema, language="json")
+                try:
+                    parsed = json.loads(st.session_state.generated_schema)
+                    table_name = parsed.get("table_name", "NEW_TABLE")
+                    if st.button("Save to tables/", use_container_width=True):
+                        filepath = save_schema(table_name, st.session_state.generated_schema)
+                        st.success(f"Saved: {filepath}")
+                        st.session_state.generated_schema = None
+                        st.rerun()
+                except json.JSONDecodeError:
+                    st.warning("Invalid JSON - please regenerate")
 
         st.divider()
 
