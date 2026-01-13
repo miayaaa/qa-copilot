@@ -35,14 +35,24 @@ Wallet is a **customer loyalty and rewards program** for One NZ (Vodafone). The 
 
 ### Balance States
 
-| State | Meaning | Next State |
-|-------|---------|------------|
-| `balance_earned` | Assigned but not yet redeemable | → available |
-| `balance_available` | Ready for redemption | → redeemed / expired / void |
-| `balance_redeemed` | Successfully used | (terminal) |
-| `balance_expired` | Past expiry date | (terminal) |
-| `balance_void` | Cancelled/invalidated | (terminal) |
-| `balance_transferred_from/to` | Moved between accounts | (terminal) |
+> Wallet balances represent **reward values (points / vouchers)**, **not real cash**.  
+> They follow a **reward lifecycle model**.  
+> **Redeemed events** are the primary source for financial reconciliation.
+
+| State | Meaning |
+|------|--------|
+| `balance_earned` | Reward value earned by the customer. |
+| `balance_available` | Reward value the customer is allowed to use, subject to rules. |
+| `balance_redeemed` | Reward value successfully used. |
+| `balance_expired` | Reward value expired before use. |
+| `balance_void` | Reward value cancelled or invalidated. |
+| `balance_transferred_from` / `balance_transferred_to` | Reward value moved between wallets. |
+
+#### QA Note
+- Balances are not cash-equivalent.
+- **Redeemed** is the key metric for reconciliation.
+- Earned and available reflect lifecycle states.
+
 
 ### Wallet Eligibility
 

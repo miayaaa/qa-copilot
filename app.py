@@ -15,6 +15,7 @@ from anthropic import Anthropic
 TABLES_DIR = Path("tables")
 SKILLS_DIR = Path(".claude/skills/qa-sql-mentor")
 SCHEMA_GEN_SKILL = Path(".claude/skills/schema-generator/SKILL.md")
+CONTEXT_DIR = Path("context")
 
 # --- Data Loading ---
 
@@ -75,6 +76,26 @@ def load_reference() -> str:
     return ""
 
 
+def load_project_context(project: str) -> str:
+    """Load project context document."""
+    project_path = CONTEXT_DIR / project / "PROJECT.md"
+    if project_path.exists():
+        with open(project_path, "r", encoding="utf-8") as f:
+            return f.read()
+    return ""
+
+
+def get_projects_from_tables(schemas: dict, selected_tables: list) -> set:
+    """Extract unique projects from selected tables."""
+    projects = set()
+    for table_name in selected_tables:
+        if table_name in schemas:
+            project = schemas[table_name]["definition"].get("project")
+            if project:
+                projects.add(project)
+    return projects
+
+
 # --- Prompt Building ---
 
 def format_selected_schema(schemas: dict, selected_tables: list) -> str:
@@ -112,19 +133,29 @@ def format_selected_schema(schemas: dict, selected_tables: list) -> str:
     return "\n".join(parts)
 
 
-def build_system_prompt(skill_prompt: str, reference: str, schema_text: str) -> list:
+def build_system_prompt(skill_prompt: str, reference: str, schema_text: str, project_context: str = "") -> list:
     """Build system prompt blocks with caching."""
-    return [
+    blocks = [
         {
             "type": "text",
             "text": f"{skill_prompt}\n\n---\n\n# SQL Reference\n\n{reference}",
             "cache_control": {"type": "ephemeral"}
-        },
-        {
-            "type": "text",
-            "text": f"# Selected Tables for QA\n\n{schema_text}"
         }
     ]
+
+    if project_context:
+        blocks.append({
+            "type": "text",
+            "text": f"# Project Context\n\n{project_context}",
+            "cache_control": {"type": "ephemeral"}
+        })
+
+    blocks.append({
+        "type": "text",
+        "text": f"# Selected Tables for QA\n\n{schema_text}"
+    })
+
+    return blocks
 
 
 # --- Schema Generator ---
@@ -369,8 +400,15 @@ def main():
                     client = Anthropic(api_key=api_key)
                     schema_text = format_selected_schema(
                         all_schemas, st.session_state.selected_tables)
+
+                    # Load project context from selected tables
+                    projects = get_projects_from_tables(
+                        all_schemas, st.session_state.selected_tables)
+                    project_context = "\n\n---\n\n".join(
+                        load_project_context(p) for p in projects if load_project_context(p))
+
                     system_blocks = build_system_prompt(
-                        skill_prompt, reference, schema_text)
+                        skill_prompt, reference, schema_text, project_context)
 
                     response = chat_with_claude(
                         client, system_blocks, st.session_state.messages)

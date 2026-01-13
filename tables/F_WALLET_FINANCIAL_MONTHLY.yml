@@ -1,5 +1,6 @@
 {
   "table_name": "MODELLED.F_WALLET_FINANCIAL_MONTHLY",
+  "project": "wallet",
   "table_grain": "One row per (Month, Wallet Member, Campaign)",
   "description": "Monthly wallet balance movements, segment transitions, and earned-balance expiry forecasts",
   "data_architecture": {

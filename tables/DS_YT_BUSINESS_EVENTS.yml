@@ -1,5 +1,6 @@
 {
   "table_name": "REFINED.DS_YT_BUSINESS_EVENTS",
+  "project": "wallet",
   "table_grain": "one row per processed business event in wallet event log",
   "description": "Wallet Business Event fact table from EventBridge for audit, reconciliation, and campaign/offer tracking",
   "data_architecture": {

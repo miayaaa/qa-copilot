@@ -1,5 +1,6 @@
 {
   "table_name": "REFINED.DS_YT_DAILY_SNAPSHOT",
+  "project": "wallet",
   "table_grain": "One row per (SNAPSHOT_DATE, WALLET_ID, OFFER_DISTRIBUTION_ID)",
   "description": "Daily snapshot fact table capturing wallet state, balances, and campaign/offer statuses",
   "data_architecture": {

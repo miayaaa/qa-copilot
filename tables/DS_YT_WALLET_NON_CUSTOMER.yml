@@ -1,5 +1,6 @@
 {
   "table_name": "modelled.ds_yt_wallet_non_customer",
+  "project": "wallet",
   "table_grain": "wallet_member",
   "description": "Non-One-NZ customer wallet members from microsite registration or Dosh customer base with One NZ service eligibility status",
   "data_architecture": {

@@ -1,5 +1,6 @@
 {
   "table_name": "MODELLED.DS_YT_WALLET_SCORES",
+  "project": "wallet",
   "table_grain": "WALLET_MEMBER_KEY",
   "description": "ML prediction scores for wallet members. Contains churn, upsell, device replacement, CLV, and credit risk predictions for Mobile On-Account and Prepay customers.",
   "data_architecture": {

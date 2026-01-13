@@ -1,136 +1,140 @@
 # Snowflake SQL Quick Reference
 
-## Syntax Essentials
-
-```sql
--- Timestamps
-DATE(ts_col)                              -- Extract date
-DATEADD(day, -7, CURRENT_TIMESTAMP())     -- Date math
-DATEDIFF(day, start_col, end_col)         -- Date diff
-DATE_TRUNC('hour', ts_col)                -- Truncate
-
--- NULLs
-COALESCE(col, 'default')                  -- First non-null
-NVL(col, 'default')                       -- Same, 2 args
-NULLIF(col, '')                           -- Value to NULL
-col IS NOT DISTINCT FROM val              -- NULL-safe equals
-
--- Strings
-col ILIKE '%pattern%'                     -- Case-insensitive
-REGEXP_LIKE(col, '^[A-Z]{2}$')            -- Regex match
-
--- Window + QUALIFY (Snowflake-specific)
-COUNT(*) OVER (PARTITION BY col)          -- Window count
-QUALIFY row_num = 1                       -- Filter window results
-```
-
 ## QA Pattern Shortcuts
 
 | Check | Pattern |
 |-------|---------|
 | Duplicates | `GROUP BY key HAVING COUNT(*) > 1` |
-| Orphans | `LEFT JOIN parent ON fk WHERE parent.pk IS NULL` |
 | NULL % | `100.0 * (COUNT(*) - COUNT(col)) / COUNT(*)` |
-| Enum violations | `WHERE status NOT IN ('A','B','C')` |
 | Time order | `WHERE end_ts < start_ts` |
 | Balance mismatch | `WHERE ABS(recorded - calculated) > 0.01` |
 
-## Migration QA - 3 Step Approach
+## Table Type Templates
 
-### Step 1: Run in AZURE (INSERT to AWS results table)
-
+### SCD2 Dimension Tables
 ```sql
--- Template: Replace {TABLE}, {RUN_ID}, {DATE_COL}, {AMOUNT_COL}
+-- Row count (current records only)
+SELECT COUNT(*) FROM {TABLE} WHERE CURRENT_RECORD_IND = 1;
+
+-- SCD2 version distribution (verify history migrated)
+SELECT CURRENT_RECORD_IND, COUNT(*) AS cnt
+FROM {TABLE}
+GROUP BY CURRENT_RECORD_IND;
+
+-- Grain uniqueness on current records
+SELECT {GRAIN_COLS}, COUNT(*) AS cnt
+FROM {TABLE}
+WHERE CURRENT_RECORD_IND = 1
+GROUP BY {GRAIN_COLS}
+HAVING COUNT(*) > 1;
+```
+
+### Snapshot Tables
+```sql
+-- Row count for specific date
+SELECT COUNT(*) FROM {TABLE} WHERE SNAPSHOT_DATE = '{DATE}';
+
+-- Date boundary check
+SELECT MIN(SNAPSHOT_DATE), MAX(SNAPSHOT_DATE) FROM {TABLE};
+
+-- Balance SUM for specific date
+SELECT SUM({BALANCE_COL}) FROM {TABLE} WHERE SNAPSHOT_DATE = '{DATE}';
+```
+
+### Event Tables
+```sql
+-- Row count for date range
+SELECT COUNT(*) FROM {TABLE}
+WHERE EVENT_TIMESTAMP BETWEEN '{START}' AND '{END}';
+
+-- Event type distribution
+SELECT EVENT_TYPE, COUNT(*) AS cnt
+FROM {TABLE}
+WHERE EVENT_TIMESTAMP BETWEEN '{START}' AND '{END}'
+GROUP BY EVENT_TYPE
+ORDER BY cnt DESC;
+
+-- Time boundary check
+SELECT MIN(EVENT_TIMESTAMP), MAX(EVENT_TIMESTAMP) FROM {TABLE};
+```
+
+### Monthly Fact Tables
+```sql
+-- Row count for month
+SELECT COUNT(*) FROM {TABLE} WHERE D_DATE_KEY = '{MONTH}';
+
+-- Key metrics SUM for month
+SELECT SUM({METRIC_COL}) FROM {TABLE} WHERE D_DATE_KEY = '{MONTH}';
+```
+
+## Migration QA - Insert Templates
+
+Output only the AZURE insert template. Add: "Run the same SQL in AWS by changing SOURCE_ENV to 'AWS_PROD'."
+
+### Core Checks Template
+```sql
+-- Template: Replace {TABLE}, {RUN_ID}, {FILTER}, {METRIC_COL}
 INSERT INTO prod_wallet.work.zz_qa_migration_test_results
 (RUN_ID, SOURCE_ENV, TABLE_NAME, TEST_CATEGORY, TEST_NAME, DIMENSION_NAME, METRIC_VALUE, STATUS, DETAILS, NOTES)
 
 -- Row count
 SELECT '{RUN_ID}', 'AZURE_PROD', '{TABLE}', 'COUNT', 'row_count',
        NULL, TO_VARCHAR(COUNT(*)), 'RECORDED', NULL, NULL
-FROM {TABLE} WHERE CURRENT_RECORD_IND = 1
+FROM {TABLE} WHERE {FILTER}
 
 UNION ALL
--- Date range
+-- Date boundary
 SELECT '{RUN_ID}', 'AZURE_PROD', '{TABLE}', 'DATE_RANGE', 'min_max_date',
        '{DATE_COL}', MIN({DATE_COL}) || '|' || MAX({DATE_COL}), 'RECORDED', NULL, NULL
-FROM {TABLE} WHERE CURRENT_RECORD_IND = 1
+FROM {TABLE} WHERE {FILTER}
 
 UNION ALL
--- Financial SUM
+-- Key metric SUM
 SELECT '{RUN_ID}', 'AZURE_PROD', '{TABLE}', 'FINANCIAL', 'sum',
-       '{AMOUNT_COL}', TO_VARCHAR(SUM({AMOUNT_COL})), 'RECORDED', NULL, NULL
-FROM {TABLE} WHERE CURRENT_RECORD_IND = 1;
+       '{METRIC_COL}', TO_VARCHAR(SUM({METRIC_COL})), 'RECORDED', NULL, NULL
+FROM {TABLE} WHERE {FILTER};
 ```
 
-### Step 2: Run in AWS (same SQL, change SOURCE_ENV)
-
+### Category Distribution Template
 ```sql
--- Same structure, change AZURE_PROD → AWS_PROD
 INSERT INTO prod_wallet.work.zz_qa_migration_test_results
-(RUN_ID, SOURCE_ENV, TABLE_NAME, TEST_CATEGORY, TEST_NAME, DIMENSION_NAME, METRIC_VALUE, STATUS, DETAILS, NOTES)
-
-SELECT '{RUN_ID}', 'AWS_PROD', '{TABLE}', 'COUNT', 'row_count',
-       NULL, TO_VARCHAR(COUNT(*)), 'RECORDED', NULL, NULL
-FROM {TABLE} WHERE CURRENT_RECORD_IND = 1
-
-UNION ALL
-SELECT '{RUN_ID}', 'AWS_PROD', '{TABLE}', 'DATE_RANGE', 'min_max_date',
-       '{DATE_COL}', MIN({DATE_COL}) || '|' || MAX({DATE_COL}), 'RECORDED', NULL, NULL
-FROM {TABLE} WHERE CURRENT_RECORD_IND = 1
-
-UNION ALL
-SELECT '{RUN_ID}', 'AWS_PROD', '{TABLE}', 'FINANCIAL', 'sum',
-       '{AMOUNT_COL}', TO_VARCHAR(SUM({AMOUNT_COL})), 'RECORDED', NULL, NULL
-FROM {TABLE} WHERE CURRENT_RECORD_IND = 1;
-```
-
-### Step 3: Compare (Run in AWS)
-
-```sql
--- Auto-compare results and UPDATE status
-UPDATE prod_wallet.work.zz_qa_migration_test_results tgt
-SET STATUS = CASE WHEN tgt.METRIC_VALUE = src.METRIC_VALUE THEN 'PASS' ELSE 'FAIL' END,
-    DETAILS = 'AZURE: ' || src.METRIC_VALUE || ' | AWS: ' || tgt.METRIC_VALUE
-FROM prod_wallet.work.zz_qa_migration_test_results src
-WHERE tgt.RUN_ID = '{RUN_ID}'
-  AND src.RUN_ID = '{RUN_ID}'
-  AND tgt.SOURCE_ENV = 'AWS_PROD'
-  AND src.SOURCE_ENV = 'AZURE_PROD'
-  AND tgt.TABLE_NAME = src.TABLE_NAME
-  AND tgt.TEST_NAME = src.TEST_NAME
-  AND NVL(tgt.DIMENSION_NAME, '') = NVL(src.DIMENSION_NAME, '');
-
--- View results
-SELECT * FROM prod_wallet.work.zz_qa_migration_test_results
-WHERE RUN_ID = '{RUN_ID}' AND SOURCE_ENV = 'AWS_PROD'
-ORDER BY STATUS DESC, TEST_CATEGORY;
-```
-
-## Category Distribution (Optional)
-
-```sql
--- Run in each env, adds one row per category value
-INSERT INTO prod_wallet.work.zz_qa_migration_test_results
-SELECT '{RUN_ID}', '{ENV}', '{TABLE}', 'DISTRIBUTION', 'category_count',
+SELECT '{RUN_ID}', 'AZURE_PROD', '{TABLE}', 'DISTRIBUTION', 'category_count',
        {DIM_COL}, TO_VARCHAR(COUNT(*)), 'RECORDED', NULL, NULL
-FROM {TABLE} WHERE CURRENT_RECORD_IND = 1
+FROM {TABLE} WHERE {FILTER}
 GROUP BY {DIM_COL};
 ```
 
-## Root Cause Analysis (Level 2)
+### SCD2 Version Check Template
+```sql
+INSERT INTO prod_wallet.work.zz_qa_migration_test_results
+SELECT '{RUN_ID}', 'AZURE_PROD', '{TABLE}', 'SCD2', 'version_distribution',
+       TO_VARCHAR(CURRENT_RECORD_IND), TO_VARCHAR(COUNT(*)), 'RECORDED', NULL, NULL
+FROM {TABLE}
+GROUP BY CURRENT_RECORD_IND;
+```
+
+## Root Cause Analysis (on FAIL)
+
+When metrics don't match, suggest these investigation paths:
+
+1. **Filter alignment** - Check if CURRENT_RECORD_IND, eligibility, or date filters differ
+2. **Time boundary** - Compare min/max timestamps for timezone or cutoff drift
+3. **Key population** - Count distinct grain keys to isolate new/missing records
+4. **Dimension split** - Break down by wallet_type or other category to isolate drift source
+5. **Value distribution** - Use percentiles to see if drift is in outliers or spread evenly
 
 ```sql
--- Percentiles when SUM mismatch
+-- Percentile check when SUM mismatch
 SELECT
-    MEDIAN({AMOUNT_COL}) AS p50,
-    PERCENTILE_CONT(0.25) WITHIN GROUP (ORDER BY {AMOUNT_COL}) AS p25,
-    PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY {AMOUNT_COL}) AS p75,
-    PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY {AMOUNT_COL}) AS p95
-FROM {TABLE} WHERE CURRENT_RECORD_IND = 1;
+    COUNT(*) AS cnt,
+    SUM({COL}) AS total,
+    MEDIAN({COL}) AS p50,
+    PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY {COL}) AS p95
+FROM {TABLE} WHERE {FILTER};
 ```
 
 ## Constraints
 
-- SELECT only (read-only) unless INSERT to QA results requested
-- Always use LIMIT for exploration
-- Prefer QUALIFY over subqueries
+- SELECT only (read-only) unless INSERT to QA results table
+- Always use LIMIT for exploratory queries
+- Use exact column names from schema (case-sensitive)
