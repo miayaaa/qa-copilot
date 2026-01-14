@@ -5,6 +5,7 @@
 > Use anchors to jump to specific sections.
 
 ## Table of Contents
+- [Migration Context](#migration-context)
 - [QA Priority Metrics](#qa-priority-metrics)
 - [Key Identifiers](#key-identifiers)
 - [Business Rules](#business-rules)
@@ -12,6 +13,62 @@
 - [Core Tables](#core-tables)
 - [SCD2 Pattern](#scd2-pattern)
 - [Glossary](#glossary)
+
+---
+
+## Migration Context
+
+### Platform Migration: Azure → AWS
+
+The Wallet data platform is migrating from Azure to AWS cloud environment.
+
+### Approach: dbt Re-run (NOT Data Copy)
+
+| Aspect | Detail |
+|--------|--------|
+| Method | Re-run dbt pipeline in AWS, **not** direct data copy |
+| First Run | Full load (`is_incremental() = false`) |
+| Data Source | Same Snowflake source system (e.g., `pdb_modelled`) |
+| Storage Change | Azure ADLS → AWS S3 (external stages only) |
+| Schema/Tables | Names unchanged between environments |
+
+### Benefits of This Approach
+
+- **Data consistency**: Regenerated from source, avoids copy errors
+- **Code consistency**: Same dbt code runs in both Azure and AWS
+- **Incremental ready**: After first full load, subsequent runs process only incremental data
+
+### QA Implications
+
+**Expected to Match:**
+- Row counts (same source, same dbt logic)
+- Key metrics (balance_redeemed, CLV, churn scores)
+- Grain uniqueness
+- Category distributions
+
+**Potential Drift Sources:**
+
+| Cause | Impact | Detection |
+|-------|--------|-----------|
+| Run timing difference | Source data changed between Azure/AWS dbt runs | Compare `MAX(RECORD_START_DATE_TIME)` |
+| Incremental vs full | Azure has incremental history, AWS is fresh full load | Compare `MIN(RECORD_START_DATE_TIME)` |
+| Late-arriving source records | Records added to source after Azure run | Compare distinct grain key counts |
+| Timezone/cutoff drift | Different run schedules | Compare date boundaries |
+
+### First Check on Mismatch: Timing Alignment
+
+When metrics don't match, **always check timing first**:
+
+```sql
+-- Compare latest record timestamps (run in each environment)
+SELECT 'AZURE' AS env, MAX(RECORD_START_DATE_TIME) AS latest_record
+FROM {TABLE}
+WHERE CURRENT_RECORD_IND = 1;
+
+-- In AWS, run same query with 'AWS' label
+```
+
+If timestamps differ significantly, the source data changed between runs - this explains most "drift."
 
 ---
 

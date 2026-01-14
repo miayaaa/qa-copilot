@@ -113,15 +113,45 @@ FROM {TABLE}
 GROUP BY CURRENT_RECORD_IND;
 ```
 
+### Timing Alignment Template
+```sql
+-- Check timing alignment (critical for dbt re-run migration)
+INSERT INTO prod_wallet.work.zz_qa_migration_test_results
+SELECT '{RUN_ID}', 'AZURE_PROD', '{TABLE}', 'TIMING', 'record_timestamp_range',
+       'RECORD_START_DATE_TIME',
+       MIN(RECORD_START_DATE_TIME) || '|' || MAX(RECORD_START_DATE_TIME),
+       'RECORDED', NULL, 'Compare with AWS to detect source data drift'
+FROM {TABLE}
+WHERE CURRENT_RECORD_IND = 1;
+```
+
 ## Root Cause Analysis (on FAIL)
 
-When metrics don't match, suggest these investigation paths:
+When metrics don't match, investigate in this order:
 
-1. **Filter alignment** - Check if CURRENT_RECORD_IND, eligibility, or date filters differ
-2. **Time boundary** - Compare min/max timestamps for timezone or cutoff drift
-3. **Key population** - Count distinct grain keys to isolate new/missing records
-4. **Dimension split** - Break down by wallet_type or other category to isolate drift source
-5. **Value distribution** - Use percentiles to see if drift is in outliers or spread evenly
+### 1. Timing Alignment (Check First)
+dbt re-run approach means source data may differ between Azure/AWS runs.
+
+```sql
+-- Compare record timestamps between environments
+SELECT
+    MIN(RECORD_START_DATE_TIME) AS earliest,
+    MAX(RECORD_START_DATE_TIME) AS latest,
+    COUNT(*) AS total_rows
+FROM {TABLE}
+WHERE CURRENT_RECORD_IND = 1;
+```
+
+If `latest` timestamps differ → source data changed between runs (expected drift).
+
+### 2. Other Investigation Paths
+
+| # | Check | What to Look For |
+|---|-------|------------------|
+| 2 | Filter alignment | CURRENT_RECORD_IND, eligibility, date filters differ |
+| 3 | Key population | Count distinct grain keys to isolate new/missing records |
+| 4 | Dimension split | Break down by wallet_type to isolate drift source |
+| 5 | Value distribution | Use percentiles to see if drift is in outliers or spread evenly |
 
 ```sql
 -- Percentile check when SUM mismatch

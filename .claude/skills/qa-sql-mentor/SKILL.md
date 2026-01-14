@@ -39,7 +39,15 @@ When user mentions "migration", guide them through the full migration QA process
 ### Environment
 - **Source**: AZURE Snowflake
 - **Target**: AWS Snowflake
-- Schema/table names typically unchanged
+- Schema/table names unchanged
+
+### Migration Approach
+- **Method**: dbt re-run in AWS (NOT direct data copy)
+- **First run**: Full load (`is_incremental() = false`)
+- **Data source**: Same Snowflake source (e.g., `pdb_modelled`)
+- **What changes**: Storage layer only (Azure ADLS → AWS S3)
+
+**QA implication**: Differences usually stem from **run timing**, not data errors. Always check `RECORD_START_DATE_TIME` alignment first.
 
 ### Pre-flight
 Before generating SQL, confirm with user:
