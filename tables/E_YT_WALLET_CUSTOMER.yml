@@ -1,0 +1,204 @@
+{
+  "table_name": "SERVING.E_YT_WALLET_CUSTOMER",
+  "project": "wallet",
+  "table_grain": "wallet_customer_key",
+  "description": "Youtap wallet customer export table - sends eligible wallet customer data to Youtap for loyalty program integration",
+  "data_architecture": {
+    "grain_definition": "One row per wallet customer record version sent to Youtap",
+    "primary_key": "wallet_customer_key",
+    "natural_key": "wallet_member_key",
+    "source_table": "ds_yt_wallet_customer",
+    "incremental_strategy": "append",
+    "scd_type": "SCD1 with version tracking"
+  },
+  "columns": {
+    "Primary_Keys": {
+      "wallet_customer_key": {"type": "VARCHAR", "pk": true, "desc": "Surrogate key for wallet customer record"},
+      "wallet_member_key": {"type": "VARCHAR", "uniqueness": "UNIQUE_GRAIN", "desc": "Business key identifying the wallet member"},
+      "wallet_id": {"type": "VARCHAR", "pii": "YES", "desc": "Unique identifier for the wallet"}
+    },
+    "Customer_Identifiers": {
+      "billing_account_number": {"type": "VARCHAR", "pii": "YES", "desc": "Customer billing account number"},
+      "service_id_sha2": {"type": "VARCHAR", "desc": "SHA2 hashed service identifier"},
+      "customer_source_id": {"type": "VARCHAR", "desc": "Source system customer identifier"}
+    },
+    "Wallet_Status": {
+      "wallet_eligibility_flag": {"type": "VARCHAR", "desc": "Whether customer is eligible for wallet", "enum": ["Y", "N"]},
+      "wallet_delete_flag": {"type": "VARCHAR", "desc": "Whether wallet should be deleted in Youtap", "enum": ["Y", "N"]},
+      "wallet_type": {"type": "VARCHAR", "desc": "Type of wallet (e.g., standard, premium)"},
+      "action": {"type": "VARCHAR", "desc": "Action to perform in Youtap (create/update/delete)"},
+      "primary_wallet_flag": {"type": "VARCHAR", "desc": "Indicates if this is the primary wallet", "enum": ["Y", "N"]},
+      "wallet_eligibility_releases": {"type": "VARCHAR", "desc": "Release versions customer is eligible for"},
+      "pilot_release_name": {"type": "VARCHAR", "desc": "Pilot release name if applicable"}
+    },
+    "Service_Information": {
+      "service_status_name": {"type": "VARCHAR", "desc": "Current status of the service", "enum": ["Active", "Deleted", "Suspended", "Preactive", "Ported Out", "Inactive", "Unknown"]},
+      "service_type_name": {"type": "VARCHAR", "desc": "Type of service (mobile, broadband, etc.)"},
+      "service_first_activation_date": {"type": "DATE", "desc": "Date service was first activated"},
+      "service_sales_channel": {"type": "VARCHAR", "desc": "Channel through which service was sold"}
+    },
+    "Customer_Segment": {
+      "customer_segment": {"type": "VARCHAR", "desc": "Customer segmentation category"},
+      "join_date": {"type": "DATE", "desc": "Date customer joined"},
+      "group_member": {"type": "VARCHAR", "desc": "Group membership indicator"},
+      "parent_indicator": {"type": "VARCHAR", "desc": "Indicates if account is a parent", "enum": ["Y", "N"]},
+      "child_indicator": {"type": "VARCHAR", "desc": "Indicates if account is a child", "enum": ["Y", "N"]},
+      "number_of_group_members": {"type": "INT", "desc": "Count of members in the group"},
+      "number_of_companions": {"type": "INT", "desc": "Count of companion services"}
+    },
+    "Plan_Information": {
+      "plan_product_id": {"type": "VARCHAR", "desc": "Product ID of the current plan"},
+      "plan_name": {"type": "VARCHAR", "desc": "Name of the current plan"},
+      "siebel_prod_name": {"type": "VARCHAR", "desc": "Siebel product name"},
+      "siebel_prod_desc": {"type": "VARCHAR", "desc": "Siebel product description"},
+      "plan_last_change_date": {"type": "DATE", "desc": "Date of last plan change"},
+      "plan_amount": {"type": "NUMERIC", "desc": "Plan amount in cents (multiplied by 100 in payload)"},
+      "plan_discount_id_list": {"type": "ARRAY", "desc": "List of discount IDs applied to plan"},
+      "plan_discount_sam_id_list": {"type": "ARRAY", "desc": "List of SAM discount IDs"},
+      "plan_discount_name_list": {"type": "ARRAY", "desc": "List of discount names applied"}
+    },
+    "IFP_Device_Information": {
+      "current_ifp_device": {"type": "VARCHAR", "desc": "Current IFP device name"},
+      "current_ifp_start_date": {"type": "DATE", "desc": "IFP contract start date"},
+      "current_ifp_end_date": {"type": "DATE", "desc": "IFP contract end date"},
+      "current_ifp_remaining_months": {"type": "INT", "desc": "Remaining months on IFP contract"},
+      "ifp_term_month_number": {"type": "INT", "desc": "Total IFP term in months"},
+      "one_upgrade_ifp_add_on_flag": {"type": "VARCHAR", "desc": "One upgrade IFP add-on indicator", "enum": ["Y", "N"]}
+    },
+    "Handset_Information": {
+      "handset_brand_name": {"type": "VARCHAR", "desc": "Brand of customer handset"},
+      "handset_model_name": {"type": "VARCHAR", "desc": "Model of customer handset"},
+      "handset_first_used_date": {"type": "DATE", "desc": "Date handset was first used"},
+      "handset_sales_channel": {"type": "VARCHAR", "desc": "Channel where handset was purchased"},
+      "handset_shipping_order_date": {"type": "DATE", "desc": "Date handset was shipped"}
+    },
+    "Network_Device_Information": {
+      "network_tac": {"type": "VARCHAR", "desc": "Type Allocation Code from network"},
+      "network_os_name": {"type": "VARCHAR", "desc": "Operating system detected on network"},
+      "network_hardware_classification": {"type": "VARCHAR", "desc": "Hardware classification from network"},
+      "network_year_released": {"type": "INT", "desc": "Year device was released"},
+      "network_standardised_name": {"type": "VARCHAR", "desc": "Standardised device name from network"}
+    },
+    "Billing_Account_Flags": {
+      "account_has_mobile_flag": {"type": "VARCHAR", "desc": "Account has mobile service", "enum": ["Y", "N"]},
+      "account_has_voice_flag": {"type": "VARCHAR", "desc": "Account has voice service", "enum": ["Y", "N"]},
+      "billing_account_collections_indicator": {"type": "VARCHAR", "desc": "Account in collections", "enum": ["Y", "N"]},
+      "account_risk_code": {"type": "VARCHAR", "desc": "Risk classification code"},
+      "ba_overdue_bill_flag": {"type": "VARCHAR", "desc": "Account has overdue bills", "enum": ["Y", "N"]}
+    },
+    "Billing_Account_Counts": {
+      "ba_count_broadband": {"type": "INT", "desc": "Count of broadband services on account"},
+      "ba_count_in_market_broadband": {"type": "INT", "desc": "Count of in-market broadband services"},
+      "ba_count_mobile_on_account": {"type": "INT", "desc": "Count of mobile services on account"},
+      "ba_count_in_market_mobile_on_account": {"type": "INT", "desc": "Count of in-market mobile services"},
+      "ba_count_one_plan": {"type": "INT", "desc": "Count of One Plan services"},
+      "ba_count_active_services": {"type": "INT", "desc": "Count of active services on account"},
+      "ba_count_eligible_service_cmgm": {"type": "INT", "desc": "Count of CMGM eligible services"},
+      "ba_count_bill_bonus": {"type": "INT", "desc": "Count of bill bonus items"}
+    },
+    "Billing_Account_Mobile_Plan_Counts": {
+      "ba_count_companion_mobile_medium_and_plus": {"type": "INT", "desc": "Count of companion mobile medium+ plans"},
+      "ba_count_companion_unlimited_mobile": {"type": "INT", "desc": "Count of companion unlimited mobile plans"},
+      "ba_count_mobile_small": {"type": "INT", "desc": "Count of mobile small plans"},
+      "ba_count_mobile_small_starter": {"type": "INT", "desc": "Count of mobile small starter plans"},
+      "ba_count_mobile_medium_and_plus": {"type": "INT", "desc": "Count of mobile medium+ plans"},
+      "ba_count_extra_large_mobile": {"type": "INT", "desc": "Count of extra large mobile plans"},
+      "ba_count_mobile_lite": {"type": "INT", "desc": "Count of mobile lite plans"},
+      "ba_count_companion_extra_large_mobile": {"type": "INT", "desc": "Count of companion XL mobile plans"}
+    },
+    "Billing_Account_Fibre_Plan_Counts": {
+      "ba_count_unlimited_fibre_starter": {"type": "INT", "desc": "Count of unlimited fibre starter plans"},
+      "ba_count_unlimited_fibre": {"type": "INT", "desc": "Count of unlimited fibre plans"},
+      "ba_count_unlimited_fibre_max": {"type": "INT", "desc": "Count of unlimited fibre max plans"},
+      "ba_count_unlimited_ultrafast_hfc_max": {"type": "INT", "desc": "Count of ultrafast HFC max plans"},
+      "ba_count_unlimited_vdsl_broadband": {"type": "INT", "desc": "Count of unlimited VDSL plans"},
+      "ba_count_unlimited_adsl_broadband": {"type": "INT", "desc": "Count of unlimited ADSL plans"},
+      "ba_count_gold_plan_12_month_term": {"type": "INT", "desc": "Count of 12-month gold plans"},
+      "ba_count_fibre_starter_unlimited_broadband": {"type": "INT", "desc": "Count of fibre starter unlimited BB"},
+      "ba_count_fibre_everyday_unlimited_broadband": {"type": "INT", "desc": "Count of fibre everyday unlimited BB"},
+      "ba_count_fibre_max_unlimited_broadband": {"type": "INT", "desc": "Count of fibre max unlimited BB"}
+    },
+    "Billing_Account_Wireless_Plan_Counts": {
+      "ba_count_300gb_wireless_broadband_12_month_term": {"type": "INT", "desc": "Count of 300GB wireless BB plans"},
+      "ba_count_300gb_wireless_broadband_with_calling_12_mth_term": {"type": "INT", "desc": "Count of 300GB wireless BB with calling"},
+      "ba_count_4g_uncapped_wireless_bb_12_month_term": {"type": "INT", "desc": "Count of 4G uncapped wireless BB"},
+      "ba_count_4g_uncapped_wbb_with_calling_12mth_term": {"type": "INT", "desc": "Count of 4G uncapped WBB with calling"},
+      "ba_count_5g_wireless_broadband_12_month_term": {"type": "INT", "desc": "Count of 5G wireless BB plans"},
+      "ba_count_5g_wireless_broadband_with_calling_12_mth_term": {"type": "INT", "desc": "Count of 5G wireless BB with calling"},
+      "ba_count_4g_wireless_lite": {"type": "INT", "desc": "Count of 4G wireless lite plans"},
+      "ba_count_wireless_unlimited": {"type": "INT", "desc": "Count of wireless unlimited plans"}
+    },
+    "Billing_Account_Business_Plan_Counts": {
+      "ba_count_business_fibre": {"type": "INT", "desc": "Count of business fibre plans"},
+      "ba_count_business_fibre_with_boost": {"type": "INT", "desc": "Count of business fibre with boost"},
+      "ba_count_business_wireless": {"type": "INT", "desc": "Count of business wireless plans"}
+    },
+    "Billing_Information": {
+      "bill_payment_method_desc": {"type": "VARCHAR", "desc": "Payment method description"},
+      "bill_delivery_type_desc": {"type": "VARCHAR", "desc": "Bill delivery method"},
+      "bill_day_of_month_number": {"type": "INT", "desc": "Day of month bill is generated"},
+      "average_days_to_bill_close_count": {"type": "INT", "desc": "Average days to close bill"},
+      "avg_days_to_bill_close_cnt_last_upd": {"type": "DATE", "desc": "Last update of avg days to close"},
+      "ba_services_recurring_earn_amount": {"type": "NUMERIC", "desc": "Recurring earn amount for services"},
+      "ba_services_recurring_earn_inclusion_flag": {"type": "VARCHAR", "desc": "Recurring earn inclusion flag", "enum": ["Y", "N"]}
+    },
+    "Wallet_Earn_Values": {
+      "partner_earn_value": {"type": "NUMERIC", "desc": "Earn value from partners"},
+      "giveaway_amount": {"type": "NUMERIC", "desc": "Giveaway amount in wallet"},
+      "current_earned_balance_excl_ti": {"type": "NUMERIC", "desc": "Current earned balance excluding TI"}
+    },
+    "Wallet_Activity": {
+      "wallet_redeemed_yesterday_flag": {"type": "VARCHAR", "desc": "Wallet was redeemed yesterday", "enum": ["Y", "N"]},
+      "latest_redemption_date": {"type": "DATE", "desc": "Date of most recent redemption"},
+      "new_acquisition_wallet_flag": {"type": "VARCHAR", "desc": "New acquisition wallet indicator", "enum": ["Y", "N"]},
+      "ba_new_acquisition_value": {"type": "NUMERIC", "desc": "New acquisition value"}
+    },
+    "Employee_Discount": {
+      "employee_discount_flag": {"type": "VARCHAR", "desc": "Employee discount applied", "enum": ["Y", "N"]},
+      "employee_discount_amount": {"type": "NUMERIC", "desc": "Employee discount amount"}
+    },
+    "Marketing": {
+      "marketing_tag": {"type": "VARCHAR", "desc": "Marketing tag identifier"},
+      "marketing_tag_value": {"type": "VARCHAR", "desc": "Marketing tag value"}
+    },
+    "Special_Flags": {
+      "spacex_network_trialist_service_flag": {"type": "VARCHAR", "desc": "SpaceX network trialist", "enum": ["Y", "N"]},
+      "device_offer": {"type": "VARCHAR", "desc": "Current device offer"},
+      "mobile_me_flag": {"type": "VARCHAR", "desc": "Mobile Me customer flag", "enum": ["Y", "N"]},
+      "offnet_nc_flag": {"type": "VARCHAR", "desc": "Off-net NC indicator", "enum": ["Y", "N"]},
+      "microsite_flag": {"type": "VARCHAR", "desc": "Microsite customer flag", "enum": ["Y", "N"]},
+      "consumer_volunteer_flag": {"type": "VARCHAR", "desc": "Consumer volunteer indicator", "enum": ["Y", "N"]}
+    },
+    "Dosh_Integration": {
+      "dosh_customer_flag": {"type": "VARCHAR", "desc": "Dosh banking customer", "enum": ["Y", "N"]},
+      "dosh_migrated_customer_earn_value": {"type": "NUMERIC", "desc": "Earn value for migrated Dosh customers"},
+      "dosh_new_customer_offer_earn_value": {"type": "NUMERIC", "desc": "New Dosh customer offer earn value"},
+      "dosh_home_loan_initial_earn_value": {"type": "NUMERIC", "desc": "Dosh home loan initial earn value"},
+      "dosh_home_loan_recurring_earn_value": {"type": "NUMERIC", "desc": "Dosh home loan recurring earn value"},
+      "dosh_card_spend_earn_value": {"type": "NUMERIC", "desc": "Dosh card spend earn value"},
+      "dosh_promotional_card_spend_earn_value": {"type": "NUMERIC", "desc": "Dosh promo card spend earn value"},
+      "dosh_first_card_use_earn_value": {"type": "NUMERIC", "desc": "Dosh first card use earn value"},
+      "dosh_salary_received_earn_value": {"type": "NUMERIC", "desc": "Dosh salary received earn value"},
+      "dosh_homeloan_offer_flag": {"type": "VARCHAR", "desc": "Dosh home loan offer eligible", "enum": ["Y", "N"]}
+    },
+    "Version_Control": {
+      "version_no": {"type": "INT", "desc": "Record version number"}
+    },
+    "LCF_Metadata": {
+      "lcf_load_timestamp": {"type": "TIMESTAMP_LTZ", "desc": "Timestamp when record was loaded"},
+      "lcf_load_id": {"type": "INT", "desc": "Load batch identifier"},
+      "lcf_unloaded_flag": {"type": "VARCHAR", "desc": "Whether record has been unloaded to Youtap", "enum": ["Y", "N"]},
+      "lcf_unloaded_timestamp": {"type": "TIMESTAMP_LTZ", "desc": "Timestamp when unloaded to Youtap"},
+      "lcf_unloaded_filename": {"type": "VARCHAR", "desc": "Filename of unload file"}
+    },
+    "Payload": {
+      "payload": {"type": "VARIANT", "desc": "JSON payload sent to Youtap containing all customer attributes"}
+    }
+  },
+  "business_rules": {
+    "incremental_logic": "Appends records where record_start_date_time > max(lcf_load_timestamp)",
+    "initial_load_filter": "Only sends wallet_eligibility_flag = 'Y' records on initial load",
+    "extract_control": "Delete flag sent only if not previously sent; eligibility changes trigger extracts",
+    "plan_amount_transform": "plan_amount is multiplied by 100 for cents conversion in payload"
+  }
+}
