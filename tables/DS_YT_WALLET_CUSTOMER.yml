@@ -1,5 +1,6 @@
 {
   "table_name": "MODELLED.DS_YT_WALLET_CUSTOMER",
+  "project": "wallet",
   "table_grain": "Wallet_Member_Key",
   "description": "Unified intelligence table for wallet members. Tracks customer profiles, financial balances, device sightings, and billing account metrics using SCD2 logic.",
   "data_architecture": {

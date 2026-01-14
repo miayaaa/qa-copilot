@@ -1,0 +1,163 @@
+{
+  "table_name": "MODELLED.F_WALLET_FINANCIAL_MONTHLY",
+  "project": "wallet",
+  "table_grain": "One row per (Month, Wallet Member, Campaign)",
+  "description": "Monthly wallet balance movements, segment transitions, and earned-balance expiry forecasts",
+  "data_architecture": {
+    "grain_definition": "Unique combination of D_DATE_KEY, D_WALLET_MEMBER_KEY, D_CAMPAIGN_KEY",
+    "primary_key": "F_WFM_KEY",
+    "natural_key": "D_DATE_KEY + D_WALLET_MEMBER_KEY + D_CAMPAIGN_KEY"
+  },
+  "columns": {
+    "Fact_Keys": {
+      "F_WFM_KEY": {
+        "type": "VARCHAR",
+        "desc": "Surrogate key for this fact row"
+      }
+    },
+    "Dimension_Keys": {
+      "D_DATE_KEY": {
+        "type": "VARCHAR",
+        "desc": "Date dimension key (monthly period)"
+      },
+      "D_WALLET_CUSTOMER_KEY_OPENING": {
+        "type": "VARCHAR",
+        "desc": "Customer key at month start"
+      },
+      "D_WALLET_CUSTOMER_KEY_CLOSING": {
+        "type": "VARCHAR",
+        "desc": "Customer key at month end"
+      },
+      "D_CUSTOMER_SEGMENT_KEY_OPENING": {
+        "type": "VARCHAR",
+        "desc": "Segment key (NC/PP/OA) at month start"
+      },
+      "D_CUSTOMER_SEGMENT_KEY_CLOSING": {
+        "type": "VARCHAR",
+        "desc": "Segment key (NC/PP/OA) at month end"
+      },
+      "D_WALLET_MEMBER_KEY": {
+        "type": "VARCHAR",
+        "desc": "Wallet member dimension key"
+      },
+      "D_CAMPAIGN_KEY": {
+        "type": "VARCHAR",
+        "desc": "Campaign dimension key"
+      }
+    },
+    "Opening_Balances": {
+      "OPENING_EARNED_BALANCE": {
+        "type": "NUMERIC",
+        "desc": "Earned balance at month start"
+      },
+      "OPENING_AVAILABLE_BALANCE": {
+        "type": "NUMERIC",
+        "desc": "Total available balance at month start"
+      },
+      "OPENING_AVAILABLE_BALANCE_SAVED": {
+        "type": "NUMERIC",
+        "desc": "Saved (locked) portion at month start"
+      },
+      "OPENING_AVAILABLE_BALANCE_UNSAVED": {
+        "type": "NUMERIC",
+        "desc": "Unsaved (redeemable) portion at month start"
+      }
+    },
+    "Monthly_Movements": {
+      "MONTH_EARNED_BALANCE": {
+        "type": "NUMERIC",
+        "desc": "Earned balance change during month"
+      },
+      "MONTH_AVAILABLE_BALANCE": {
+        "type": "NUMERIC",
+        "desc": "Available balance change during month"
+      },
+      "MONTH_AVAILABLE_BALANCE_SAVED": {
+        "type": "NUMERIC",
+        "desc": "Saved balance change during month"
+      },
+      "MONTH_AVAILABLE_BALANCE_UNSAVED": {
+        "type": "NUMERIC",
+        "desc": "Unsaved balance change during month"
+      },
+      "MONTH_REDEEMED_EARNED_BALANCE": {
+        "type": "NUMERIC",
+        "desc": "Earned balance redeemed in month"
+      },
+      "MONTH_EXPIRED_EARNED_BALANCE": {
+        "type": "NUMERIC",
+        "desc": "Earned balance expired in month"
+      },
+      "MONTH_EXPIRED_AVAILABLE_BALANCE": {
+        "type": "NUMERIC",
+        "desc": "Available balance expired in month"
+      },
+      "MONTH_VOIDED_EARNED_BALANCE": {
+        "type": "NUMERIC",
+        "desc": "Earned balance voided in month"
+      },
+      "MONTH_VOIDED_AVAILABLE_BALANCE": {
+        "type": "NUMERIC",
+        "desc": "Available balance voided in month"
+      }
+    },
+    "Closing_Balances": {
+      "CLOSING_EARNED_BALANCE": {
+        "type": "NUMERIC",
+        "desc": "Earned balance at month end"
+      },
+      "CLOSING_AVAILABLE_BALANCE": {
+        "type": "NUMERIC",
+        "desc": "Total available balance at month end"
+      },
+      "CLOSING_AVAILABLE_BALANCE_SAVED": {
+        "type": "NUMERIC",
+        "desc": "Saved (locked) portion at month end"
+      },
+      "CLOSING_AVAILABLE_BALANCE_UNSAVED": {
+        "type": "NUMERIC",
+        "desc": "Unsaved (redeemable) portion at month end"
+      }
+    },
+    "Forecast_Expiry_Buckets": {
+      "FORECASTED_EARNED_BALANCE_EXPIRY_12_MONTHS": {
+        "type": "NUMERIC",
+        "desc": "Earned balance expiring in 0-12 months"
+      },
+      "FORECASTED_EARNED_BALANCE_EXPIRY_13_24_MONTHS": {
+        "type": "NUMERIC",
+        "desc": "Earned balance expiring in 13-24 months"
+      },
+      "FORECASTED_EARNED_BALANCE_EXPIRY_25_36_MONTHS": {
+        "type": "NUMERIC",
+        "desc": "Earned balance expiring in 25-36 months"
+      },
+      "FORECASTED_EARNED_BALANCE_EXPIRY_37_48_MONTHS": {
+        "type": "NUMERIC",
+        "desc": "Earned balance expiring in 37-48 months"
+      },
+      "FORECASTED_EARNED_BALANCE_EXPIRY_49_60_MONTHS": {
+        "type": "NUMERIC",
+        "desc": "Earned balance expiring in 49-60 months"
+      },
+      "FORECASTED_EARNED_BALANCE_EXPIRY_60+_MONTHS": {
+        "type": "NUMERIC",
+        "desc": "Earned balance expiring after 60 months"
+      },
+      "FORECASTED_EARNED_BALANCE_EXPIRY_UNKNOWN": {
+        "type": "NUMERIC",
+        "desc": "Earned balance with unknown expiry date"
+      }
+    },
+    "Load_Metadata": {
+      "LCF_LOAD_TIMESTAMP": {
+        "type": "TIMESTAMP",
+        "desc": "Data load timestamp"
+      },
+      "LCF_LOAD_ID": {
+        "type": "VARCHAR",
+        "desc": "Load batch identifier"
+      }
+    }
+  }
+}

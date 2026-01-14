@@ -1,0 +1,323 @@
+{
+  "table_name": "REFINED.DS_YT_WALLET_MANAGEMENT",
+  "project": "wallet",
+  "table_grain": "wallet_management_key (one row per wallet state change)",
+  "description": "Type-2 SCD tracking wallet lifecycle, eligibility, status & giveaway amounts for ON-ACCOUNT, PREPAY & NON-CUSTOMER wallets",
+  "data_architecture": {
+    "grain_definition": "Unique combination of wallet_member_key, version_no, and record timeline",
+    "primary_key": "wallet_management_key",
+    "natural_key": "wallet_member_key",
+    "surrogate_key": "wallet_management_key (MD5 hash of wallet_member_key || version_no)",
+    "temporal_keys": {
+      "effective_from": "record_start_date_time",
+      "effective_to": "record_end_date_time",
+      "current_flag": "current_record_ind"
+    },
+    "materialization": {
+      "type": "incremental",
+      "strategy": "merge",
+      "merge_key": "wallet_member_key",
+      "update_columns": ["record_end_date_time", "current_record_ind"]
+    }
+  },
+  "columns": {
+    "Primary_Keys": {
+      "wallet_management_key": {
+        "type": "VARCHAR",
+        "desc": "Surrogate key (MD5 hash of wallet_member_key || version_no) uniquely identifying wallet state version",
+        "nullable": false
+      },
+      "wallet_member_key": {
+        "type": "VARCHAR",
+        "desc": "Natural key identifying wallet member across all incarnations (MD5 hash of wallet_id || billing_account_number)",
+        "pii": false,
+        "nullable": false
+      }
+    },
+    "Wallet_Identifiers": {
+      "wallet_id": {
+        "type": "VARCHAR",
+        "desc": "MSISDN/phone number or microsite-generated wallet identifier. Can change via MSISDN_CHANGE actions",
+        "pii": true,
+        "nullable": true
+      },
+      "billing_account_number": {
+        "type": "VARCHAR",
+        "desc": "BAN from PDB (OA) or deterministic mock (PP/NC). For PP: 'P' + sequence number; for NC: from Gravity/Dosh",
+        "pii": true,
+        "nullable": true
+      },
+      "service_source_id": {
+        "type": "VARCHAR",
+        "desc": "PDB service source identifier for OA wallets only. NULL for PP and NC wallets",
+        "nullable": true
+      }
+    },
+    "Wallet_Status": {
+      "wallet_type": {
+        "type": "VARCHAR",
+        "desc": "Wallet category: ON-ACCOUNT, PREPAY, or NON-CUSTOMER",
+        "enum": ["ON-ACCOUNT", "PREPAY", "NON-CUSTOMER"],
+        "nullable": false
+      },
+      "wallet_eligibility_flag": {
+        "type": "VARCHAR",
+        "desc": "Y=eligible for rewards, N=ineligible (e.g., suspended/deleted)",
+        "enum": ["Y", "N"],
+        "nullable": false
+      },
+      "service_status_name": {
+        "type": "VARCHAR",
+        "desc": "Primary wallet status: Active, On-Account Suspended, Prepay Suspended, Non-Customer Suspended, Wallet Deleted, etc.",
+        "nullable": false
+      },
+      "on_account_status": {
+        "type": "VARCHAR",
+        "desc": "OA-specific service status from PDB (Active, Suspended, DELETED, etc.). NULL for PP and NC wallets",
+        "nullable": true
+      },
+      "prepay_status": {
+        "type": "VARCHAR",
+        "desc": "Matrixx prepay status: ACTIVE, NOCREDIT, RESTRICT, DEACTIVE, WELCOME, DELETED. NULL for OA and NC wallets",
+        "enum": ["ACTIVE", "NOCREDIT", "RESTRICT", "DEACTIVE", "WELCOME", "DELETED"],
+        "nullable": true
+      },
+      "plan_name": {
+        "type": "VARCHAR",
+        "desc": "Service plan name (e.g., 0Val_One_SIM, plan_name from PDB/Matrixx)",
+        "nullable": true
+      }
+    },
+    "Wallet_Dates": {
+      "wallet_suspended_date": {
+        "type": "DATE",
+        "desc": "Date wallet entered suspended state. NULL if never suspended",
+        "nullable": true
+      },
+      "wallet_delete_date": {
+        "type": "DATE",
+        "desc": "Scheduled deletion date. NULL for Dosh customers, active wallets, or wallets that never get deleted",
+        "nullable": true
+      },
+      "wallet_delete_flag": {
+        "type": "VARCHAR",
+        "desc": "Y=wallet hard-deleted from YouTap, N=still active/suspended",
+        "enum": ["Y", "N"],
+        "nullable": false
+      },
+      "prepay_extract_date": {
+        "type": "DATE",
+        "desc": "Matrixx extraction date for prepay records. NULL for OA and NC wallets",
+        "nullable": true
+      }
+    },
+    "Action_Tracking": {
+      "action": {
+        "type": "VARCHAR",
+        "desc": "State transition type indicating what change occurred to the wallet",
+        "enum": [
+          "INITIAL LOAD",
+          "OA_NEW",
+          "PP_NEW",
+          "NC_NEW",
+          "OA_UPDATE",
+          "PP_UPDATE",
+          "NC_UPDATE",
+          "OA_2_PP",
+          "PP_2_OA",
+          "NC_2_OA",
+          "NC_2_PP",
+          "OA_MSISDN_CHANGE",
+          "OA_MSISDN_CHANGE_MICROSITE",
+          "OA_SUSPEND_DEACTIVE",
+          "OA_SUSPEND_DELETED",
+          "PP_SUSPEND_DEACTIVE",
+          "PP_SUSPEND_DELETED",
+          "NC_SUSPEND",
+          "NC_SUSPEND_DELETED",
+          "OA_RECYCLED",
+          "PP_RECYCLED",
+          "WALLET_DELETED",
+          "WALLET_DELETED_MSISDN_CHANGE",
+          "DOSH_NEW_CUSTOMER",
+          "DOSH_ACCOUNT_SUSPENDED",
+          "DOSH_MSISDN_CHANGE",
+          "WALLET_DELETED_DOSH_MSISDN_CHANGE",
+          "NC_DELETE"
+        ],
+        "nullable": false
+      },
+      "version_no": {
+        "type": "INT",
+        "desc": "Sequential version of wallet record (increments per state change). Starts at 1 for initial load",
+        "nullable": false
+      }
+    },
+    "Wallet_Attributes": {
+      "microsite_flag": {
+        "type": "VARCHAR",
+        "desc": "Y=created via YouTap microsite, N=system-generated (OA/PP from PDB/Matrixx)",
+        "enum": ["Y", "N"],
+        "nullable": false
+      },
+      "dosh_customer_flag": {
+        "type": "VARCHAR",
+        "desc": "Y=Dosh partner customer, N=non-Dosh. Dosh customers have special deletion rules",
+        "enum": ["Y", "N"],
+        "nullable": false
+      },
+      "giveaway_amount": {
+        "type": "NUMERIC",
+        "desc": "Loyalty/giveaway amount in currency units (0 if no giveaway). Calculated via giveaway_amount() macro post-hook",
+        "nullable": false
+      },
+      "temp_msisdn": {
+        "type": "VARCHAR",
+        "desc": "Pipe-delimited list of temporary MSISDNs (microsite only). Used for MSISDN_CHANGE logic",
+        "nullable": true
+      }
+    },
+    "Temporal": {
+      "record_start_date_time": {
+        "type": "TIMESTAMP_NTZ",
+        "desc": "Effective start of record. '1900-01-01' for initial load, CURRENT_TIMESTAMP() for subsequent versions",
+        "nullable": false
+      },
+      "record_end_date_time": {
+        "type": "TIMESTAMP_NTZ",
+        "desc": "Effective end of record. '9999-12-31' if current version, CURRENT_TIMESTAMP() if superseded",
+        "nullable": false
+      },
+      "current_record_ind": {
+        "type": "INT",
+        "desc": "1=current version, 0=historical version. Multiple versions per day possible (millisecond timestamps)",
+        "enum": [0, 1],
+        "nullable": false
+      }
+    },
+    "Metadata": {
+      "lcf_load_id": {
+        "type": "INT",
+        "desc": "Load Control Framework batch identifier",
+        "nullable": false
+      },
+      "lcf_load_timestamp": {
+        "type": "TIMESTAMP_NTZ",
+        "desc": "LCF load execution timestamp",
+        "nullable": false
+      }
+    }
+  },
+  "key_business_rules": [
+    "Wallet membership tracked by wallet_member_key; MSISDN (wallet_id) can change via MSISDN_CHANGE actions",
+    "ON-ACCOUNT & PREPAY wallets prioritized over NON-CUSTOMER for same MSISDN (x2_active logic prevents NC when OA/PP exists)",
+    "NC wallets from microsite auto-delete after WFE_NC_DELETE_DAYS; Dosh NC wallets never auto-delete",
+    "PP & OA wallets change to NON-CUSTOMER after WFE_SUSPEND_DAYS in suspended state (NC_SUSPEND action)",
+    "Recycled MSISDNs generate new wallet_member_key but reuse version_no timeline if same BAN (OA_RECYCLED, PP_RECYCLED)",
+    "Dosh partner wallets: NEW_CUSTOMER removes delete dates; ACCOUNT_SUSPENDED sets delete date on NC only; MSISDN_CHANGE updates MSISDN for NC/PP",
+    "Multiple state transitions on same day create sequential version records with millisecond timestamps",
+    "Initial load creates records with action='INITIAL LOAD', version_no=1, record_start_date_time='1900-01-01'",
+    "OA wallets inactive during initial load set to 'On-Account Suspended' with delete date",
+    "PP wallets with status DEACTIVE excluded from initial load",
+    "Microsite wallets (microsite_flag='Y') can have temp_msisdn used for MSISDN_CHANGE logic",
+    "offnet_nc_2_oa and offnet_nc_2_pp are microsite-specific transitions (offnet = microsite)",
+    "NC_DELETE action exists in code but is currently commented out (may be re-enabled)"
+  ],
+  "source_systems": [
+    {
+      "name": "PDB",
+      "tables": [
+        "ds_pdb_service",
+        "ds_pdb_billing_account",
+        "ds_pdb_customer"
+      ],
+      "purpose": "Source for ON-ACCOUNT wallet data"
+    },
+    {
+      "name": "Matrixx",
+      "tables": [
+        "ds_mtx_sub_subscriber"
+      ],
+      "purpose": "Source for PREPAY wallet data"
+    },
+    {
+      "name": "YouTap Business Events",
+      "tables": [
+        "ds_yt_business_events"
+      ],
+      "purpose": "Source for temp_msisdn tracking (MSISDN_UPDATE events)"
+    },
+    {
+      "name": "Gravitas Non-Customer",
+      "tables": [
+        "ds_grav_non_customer"
+      ],
+      "purpose": "Source for microsite-generated NON-CUSTOMER wallets"
+    },
+    {
+      "name": "Dosh Partner",
+      "tables": [
+        "ds_dosh_non_customer",
+        "ds_dosh_transactions"
+      ],
+      "purpose": "Source for Dosh partner customer wallets and transaction events"
+    },
+    {
+      "name": "LCF Control",
+      "tables": [
+        "lcf_control",
+        "lcf_dosh_migration"
+      ],
+      "purpose": "Configuration parameters (WFE_*) and Dosh migration mapping"
+    }
+  ],
+  "incremental_logic": {
+    "strategy": "MERGE on wallet_member_key",
+    "update_columns": ["record_end_date_time", "current_record_ind"],
+    "insert_logic": "Daily run identifies state transitions and inserts new versions",
+    "initial_load": "When is_incremental() = false, creates initial_load CTE with all active OA and PP wallets",
+    "version_handling": "Multiple transitions per day create sequential versions with millisecond-precision timestamps"
+  },
+  "post_hooks": [
+    {
+      "hook": "giveaway_amount()",
+      "purpose": "Calculates and updates giveaway_amount based on wallet eligibility and status"
+    },
+    {
+      "hook": "UPDATE ds_dosh_transactions SET lcf_processed_flag = 'Y'",
+      "purpose": "Marks processed Dosh transactions (NEW_CUSTOMER, MSISDN_CHANGE, ACCOUNT_SUSPENDED)"
+    }
+  ],
+  "dependencies": {
+    "upstream_models": [
+      "ds_pdb_service",
+      "ds_pdb_billing_account",
+      "ds_pdb_customer",
+      "ds_mtx_sub_subscriber",
+      "ds_yt_business_events",
+      "ds_grav_non_customer",
+      "ds_dosh_non_customer",
+      "ds_dosh_transactions"
+    ],
+    "downstream_models": [
+      "s_yt_wallet_customer_current",
+      "s_yt_wallet_scores_current",
+      "e_yt_wallet_customer"
+    ],
+    "macros": [
+      "giveaway_amount()",
+      "lcf_load_id()"
+    ]
+  },
+  "control_parameters": {
+    "WFE_OA_PP_DELETE_DAYS": "Days after suspension before OA/PP wallets are deleted (except Dosh)",
+    "WFE_NC_DELETE_DAYS": "Days after creation before NC microsite wallets are deleted (Dosh NC wallets excluded)",
+    "WFE_SUSPEND_DAYS": "Days in suspended state before wallet changes to NON-CUSTOMER type",
+    "WFE_TEMP_MSISDN_VALID": "Days temp_msisdn remains valid for MSISDN_CHANGE logic"
+  },
+  "migration_notes": {
+    "aws_migration_date": "2025-12-17",
+    "ticket": "700860",
+    "changes": "Storage integration changed from Azure ADLS to AWS S3, model logic unchanged"
+  }
+}

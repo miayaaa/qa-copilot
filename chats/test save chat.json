@@ -1,0 +1,16 @@
+{
+  "messages": [
+    {
+      "role": "user",
+      "content": "how to"
+    },
+    {
+      "role": "assistant",
+      "content": "I'm ready to help! 👋\n\nI can assist you with:\n\n## 🔍 **Migration QA for F_WALLET_FINANCIAL_MONTHLY**\n- Generate SQL to compare Azure → AWS\n- Check row counts, balances, grain uniqueness\n- Identify data drift or missing records\n\n## 📊 **Ad-hoc SQL Queries**\n- Balance reconciliation checks\n- Monthly movement validation\n- Segment transition analysis\n- Expiry forecast validation\n\n## 🛠️ **Troubleshooting**\n- Diagnose QA test failures\n- Root cause analysis on mismatches\n- Data quality investigations\n\n---\n\n### **To get started, please tell me:**\n\n1. **What's your goal?**\n   - \"I need to QA this table for migration\"\n   - \"I want to check if [specific metric] is correct\"\n   - \"I'm investigating a data issue\"\n\n2. **Any specifics?**\n   - Month/date range of interest (e.g., \"2024-01\")\n   - Which balance fields matter (e.g., \"opening vs closing\")\n   - Specific wallet types to focus on (OA/PP/NC)\n\n**Example:**\n> \"I need to migrate QA for F_WALLET_FINANCIAL_MONTHLY. I want to compare row counts and total CLOSING_EARNED_BALANCE for Jan 2024 between Azure and AWS.\"\n\nWhat would you like to do? 🚀"
+    }
+  ],
+  "tables": [
+    "MODELLED.F_WALLET_FINANCIAL_MONTHLY"
+  ],
+  "temp_schema": null
+}

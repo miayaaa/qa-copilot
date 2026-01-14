@@ -1,0 +1,213 @@
+{
+  "table_name": "REFINED.DS_YT_DAILY_SNAPSHOT",
+  "project": "wallet",
+  "table_grain": "One row per (SNAPSHOT_DATE, WALLET_ID, OFFER_DISTRIBUTION_ID)",
+  "description": "Daily snapshot fact table capturing wallet state, balances, and campaign/offer statuses",
+  "data_architecture": {
+    "grain_definition": "Wallet snapshot at point-in-time with associated campaign and offer details",
+    "primary_key": "DAILY_SNAPSHOT_KEY",
+    "natural_key": "SNAPSHOT_DATE, WALLET_ID, OFFER_DISTRIBUTION_ID"
+  },
+  "columns": {
+    "Keys & Identifiers": {
+      "DAILY_SNAPSHOT_KEY": {
+        "type": "VARCHAR",
+        "desc": "Surrogate key for daily snapshot grain"
+      },
+      "WALLET_ID": {
+        "type": "VARCHAR",
+        "desc": "Unique wallet identifier",
+        "pii": "YES"
+      },
+      "WALLET_MEMBER_KEY": {
+        "type": "VARCHAR",
+        "desc": "Link to wallet member dimension"
+      },
+      "WALLET_CUSTOMER_KEY": {
+        "type": "VARCHAR",
+        "desc": "Link to customer dimension"
+      },
+      "YOUTAP_CUSTOMER_ID": {
+        "type": "VARCHAR",
+        "desc": "Source system customer identifier"
+      },
+      "BILLING_ACCOUNT_NUMBER": {
+        "type": "VARCHAR",
+        "desc": "Billing account associated with wallet",
+        "pii": "YES"
+      }
+    },
+    "Snapshot Timing": {
+      "SNAPSHOT_DATE": {
+        "type": "DATE",
+        "desc": "Date of wallet snapshot"
+      },
+      "SNAPSHOT_DATE_TIME": {
+        "type": "TIMESTAMP_NTZ",
+        "desc": "Exact timestamp of wallet snapshot"
+      }
+    },
+    "Wallet Balances": {
+      "BALANCE_AVAILABLE": {
+        "type": "NUMERIC",
+        "desc": "Available balance in wallet"
+      },
+      "BALANCE_EARNED": {
+        "type": "NUMERIC",
+        "desc": "Earned balance in wallet"
+      },
+      "BALANCE_EXPIRED": {
+        "type": "NUMERIC",
+        "desc": "Expired balance in wallet"
+      },
+      "BALANCE_REDEEMED": {
+        "type": "NUMERIC",
+        "desc": "Redeemed balance in wallet"
+      },
+      "BALANCE_VOID": {
+        "type": "NUMERIC",
+        "desc": "Voided balance in wallet"
+      },
+      "TRANSFER_FROM_BAL": {
+        "type": "NUMERIC",
+        "desc": "Balance transferred from in transaction"
+      },
+      "TRANSFER_TO_BAL": {
+        "type": "NUMERIC",
+        "desc": "Balance transferred to in transaction"
+      },
+      "BALANCE_TRANSFERRED_FROM": {
+        "type": "VARCHAR",
+        "desc": "Source wallet for transfer"
+      },
+      "BALANCE_TRANSFERRED_TO": {
+        "type": "VARCHAR",
+        "desc": "Destination wallet for transfer"
+      }
+    },
+    "Transfer Details": {
+      "TRANSFER_ID": {
+        "type": "VARCHAR",
+        "desc": "Unique transfer transaction identifier"
+      },
+      "WALLET_ID_TRANSFEROR": {
+        "type": "VARCHAR",
+        "desc": "Wallet ID of transfer sender"
+      },
+      "WALLET_ID_TRANSFEREE": {
+        "type": "VARCHAR",
+        "desc": "Wallet ID of transfer receiver"
+      }
+    },
+    "Campaign Attributes": {
+      "CAMPAIGN_ID": {
+        "type": "VARCHAR",
+        "desc": "Unique campaign identifier"
+      },
+      "CAMPAIGN_NAME": {
+        "type": "VARCHAR",
+        "desc": "Campaign name/title"
+      },
+      "CAMPAIGN_TYPE": {
+        "type": "VARCHAR",
+        "desc": "Campaign type classification"
+      },
+      "CAMPAIGN_CATEGORY": {
+        "type": "VARCHAR",
+        "desc": "Campaign category grouping"
+      },
+      "CAMPAIGN_START_DATE_TIME": {
+        "type": "TIMESTAMP_NTZ",
+        "desc": "Campaign start date and time"
+      },
+      "CAMPAIGN_END_DATE_TIME": {
+        "type": "TIMESTAMP_NTZ",
+        "desc": "Campaign end date and time"
+      }
+    },
+    "Offer Attributes": {
+      "OFFER_HEADING": {
+        "type": "VARCHAR",
+        "desc": "Offer heading/title display"
+      },
+      "OFFER_NAME": {
+        "type": "VARCHAR",
+        "desc": "Offer name identifier"
+      },
+      "OFFER_STATUS": {
+        "type": "VARCHAR",
+        "desc": "Current status of offer"
+      },
+      "OFFER_VALUE": {
+        "type": "NUMERIC",
+        "desc": "Monetary or point value of offer"
+      },
+      "OFFER_DISTRIBUTION_ID": {
+        "type": "VARCHAR",
+        "desc": "Unique offer distribution identifier"
+      },
+      "OFFER_DISTRIBUTION_STATUS": {
+        "type": "VARCHAR",
+        "desc": "Status of offer distribution"
+      },
+      "OFFER_SAVED_STATUS": {
+        "type": "VARCHAR",
+        "desc": "Indicator of offer save status"
+      }
+    },
+    "Trade-In Details": {
+      "TRADEIN_REFERENCE": {
+        "type": "VARCHAR",
+        "desc": "Reference number for trade-in transaction"
+      }
+    },
+    "Audit & Metadata": {
+      "CREATED_BY": {
+        "type": "VARCHAR",
+        "desc": "User or system that created record"
+      },
+      "CREATED_DATE": {
+        "type": "DATE",
+        "desc": "Date record was created"
+      },
+      "MODIFIED_BY": {
+        "type": "VARCHAR",
+        "desc": "User or system that last modified record"
+      },
+      "MODIFIED_DATE": {
+        "type": "DATE",
+        "desc": "Date record was last modified"
+      }
+    },
+    "File Lineage": {
+      "METADATA$FILENAME": {
+        "type": "VARCHAR",
+        "desc": "Source file name (Snowpipe metadata)"
+      },
+      "METADATA$FILE_ROW_NUMBER": {
+        "type": "INT",
+        "desc": "Row number within source file"
+      },
+      "METADATA$FILE_CONTENT_KEY": {
+        "type": "VARCHAR",
+        "desc": "Content key for file deduplication"
+      },
+      "METADATA$FILE_LAST_MODIFIED": {
+        "type": "TIMESTAMP_NTZ",
+        "desc": "Source file last modified timestamp"
+      },
+      "METADATA$START_SCAN_TIME": {
+        "type": "TIMESTAMP_NTZ",
+        "desc": "Snowpipe scan start timestamp"
+      },
+      "LCF_LOAD_TIMESTAMP": {
+        "type": "TIMESTAMP_NTZ",
+        "desc": "Load Control Framework load timestamp"
+      },
+      "LCF_LOAD_ID": {
+        "type": "VARCHAR",
+        "desc": "Load Control Framework load identifier"
+      }
+    }
+  }
+}
