@@ -16,6 +16,7 @@ TABLES_DIR = Path("tables")
 SKILLS_DIR = Path(".claude/skills/qa-sql-mentor")
 SCHEMA_GEN_SKILL = Path(".claude/skills/schema-generator/SKILL.md")
 CONTEXT_DIR = Path("context")
+CHATS_DIR = Path("chats")
 
 # --- Data Loading ---
 
@@ -98,9 +99,9 @@ def get_projects_from_tables(schemas: dict, selected_tables: list) -> set:
 
 # --- Prompt Building ---
 
-def format_selected_schema(schemas: dict, selected_tables: list) -> str:
+def format_selected_schema(schemas: dict, selected_tables: list, temp_schema: dict = None) -> str:
     """Format only selected tables into prompt-ready text."""
-    if not selected_tables:
+    if not selected_tables and not temp_schema:
         return "No tables selected."
 
     parts = []
@@ -129,6 +130,14 @@ def format_selected_schema(schemas: dict, selected_tables: list) -> str:
                         f"Business Rule [{rule['name']}]: {rule['description']}")
 
             parts.append("")
+
+    # Append temporary schema if exists
+    if temp_schema:
+        parts.append(f"## [Temporary] {temp_schema['name']}")
+        parts.append("Source: `session (not saved)`\n")
+        parts.append(
+            yaml.dump(temp_schema["definition"], default_flow_style=False, sort_keys=False))
+        parts.append("")
 
     return "\n".join(parts)
 
@@ -212,6 +221,38 @@ def save_schema(table_name: str, schema_json: str) -> Path:
     return filepath
 
 
+# --- Chat History ---
+
+def list_chats() -> list:
+    """List saved chat files, sorted by modified time (newest first)."""
+    if not CHATS_DIR.exists():
+        return []
+    files = list(CHATS_DIR.glob("*.json"))
+    files.sort(key=lambda f: f.stat().st_mtime, reverse=True)
+    return [f.stem for f in files]
+
+
+def save_chat(name: str, messages: list, tables: list, temp_schema: dict = None):
+    """Save chat to file."""
+    CHATS_DIR.mkdir(exist_ok=True)
+    data = {"messages": messages, "tables": tables, "temp_schema": temp_schema}
+    with open(CHATS_DIR / f"{name}.json", "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+
+def load_chat(name: str) -> dict:
+    """Load chat from file."""
+    with open(CHATS_DIR / f"{name}.json", "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def delete_chat(name: str):
+    """Delete a saved chat."""
+    filepath = CHATS_DIR / f"{name}.json"
+    if filepath.exists():
+        filepath.unlink()
+
+
 # --- Claude API ---
 
 MAX_HISTORY = 20  # messages
@@ -241,6 +282,10 @@ def init_session():
         st.session_state.selected_tables = []
     if "generated_schema" not in st.session_state:
         st.session_state.generated_schema = None
+    if "temp_schema" not in st.session_state:
+        st.session_state.temp_schema = None
+    if "current_chat" not in st.session_state:
+        st.session_state.current_chat = None
 
 
 def render_message(role: str, content: str):
@@ -347,37 +392,105 @@ def main():
                         except Exception as e:
                             st.error(f"Error: {e}")
 
-            # Preview and save
+            # Preview and save/use
             if st.session_state.generated_schema:
                 st.code(st.session_state.generated_schema, language="json")
                 try:
                     parsed = json.loads(st.session_state.generated_schema)
                     table_name = parsed.get("table_name", "NEW_TABLE")
-                    if st.button("Save to tables/", key="btn_save_schema", use_container_width=True):
-                        filepath = save_schema(table_name, st.session_state.generated_schema)
-                        st.success(f"Saved: {filepath}")
-                        st.session_state.generated_schema = None
-                        st.rerun()
+
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        if st.button("Use in chat", key="btn_use_temp", use_container_width=True):
+                            st.session_state.temp_schema = {
+                                "name": table_name,
+                                "definition": parsed
+                            }
+                            st.session_state.generated_schema = None
+                            st.rerun()
+                    with col2:
+                        if st.button("Save to tables/", key="btn_save_schema", use_container_width=True):
+                            filepath = save_schema(table_name, st.session_state.generated_schema)
+                            st.success(f"Saved: {filepath}")
+                            st.session_state.generated_schema = None
+                            st.rerun()
                 except json.JSONDecodeError:
                     st.warning("Invalid JSON - please regenerate")
 
+        # Show active temp schema
+        if st.session_state.temp_schema:
+            st.success(f"Temp: {st.session_state.temp_schema['name']}")
+            if st.button("Clear temp schema", key="btn_clear_temp", use_container_width=True):
+                st.session_state.temp_schema = None
+                st.rerun()
+
         st.divider()
 
-        # Clear chat
-        if st.button("🗑️ Clear Chat", use_container_width=True):
+        # Chat History
+        st.subheader("💬 Chat History")
+
+        # Current chat indicator
+        if st.session_state.current_chat:
+            st.caption(f"Current: {st.session_state.current_chat}")
+
+        # Save current chat
+        if st.session_state.messages:
+            with st.expander("Save chat", expanded=False):
+                default_name = st.session_state.current_chat or ""
+                chat_name = st.text_input("Chat name", value=default_name, key="chat_name_input")
+                if st.button("Save", key="btn_save_chat", use_container_width=True):
+                    if chat_name.strip():
+                        save_chat(
+                            chat_name.strip(),
+                            st.session_state.messages,
+                            st.session_state.selected_tables,
+                            st.session_state.temp_schema
+                        )
+                        st.session_state.current_chat = chat_name.strip()
+                        st.success(f"Saved: {chat_name}")
+                        st.rerun()
+
+        # List saved chats
+        saved_chats = list_chats()
+        if saved_chats:
+            for chat_name in saved_chats[:10]:  # Show last 10
+                col1, col2 = st.columns([4, 1])
+                with col1:
+                    is_current = chat_name == st.session_state.current_chat
+                    label = f"• {chat_name}" + (" ✓" if is_current else "")
+                    if st.button(label, key=f"load_{chat_name}", use_container_width=True):
+                        data = load_chat(chat_name)
+                        st.session_state.messages = data.get("messages", [])
+                        st.session_state.selected_tables = data.get("tables", [])
+                        st.session_state.temp_schema = data.get("temp_schema")
+                        st.session_state.current_chat = chat_name
+                        st.rerun()
+                with col2:
+                    if st.button("🗑", key=f"del_{chat_name}"):
+                        delete_chat(chat_name)
+                        if st.session_state.current_chat == chat_name:
+                            st.session_state.current_chat = None
+                        st.rerun()
+
+        # New chat button
+        if st.button("+ New Chat", use_container_width=True):
             st.session_state.messages = []
+            st.session_state.current_chat = None
             st.rerun()
 
     # --- Main Chat Area ---
     st.header("💬 Chat")
 
-    if not st.session_state.selected_tables:
-        st.info("👈 Please select tables on the left first")
+    has_context = st.session_state.selected_tables or st.session_state.temp_schema
+    if not has_context:
+        st.info("👈 Please select tables or generate a temp schema first")
         return
 
     # Display selected context
-    st.caption(
-        f"Current context: {', '.join(st.session_state.selected_tables)}")
+    context_parts = list(st.session_state.selected_tables)
+    if st.session_state.temp_schema:
+        context_parts.append(f"[Temp] {st.session_state.temp_schema['name']}")
+    st.caption(f"Current context: {', '.join(context_parts)}")
 
     # Chat history
     for msg in st.session_state.messages:
@@ -399,7 +512,8 @@ def main():
                 try:
                     client = Anthropic(api_key=api_key)
                     schema_text = format_selected_schema(
-                        all_schemas, st.session_state.selected_tables)
+                        all_schemas, st.session_state.selected_tables,
+                        st.session_state.temp_schema)
 
                     # Load project context from selected tables
                     projects = get_projects_from_tables(
