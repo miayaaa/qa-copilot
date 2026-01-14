@@ -78,12 +78,22 @@ def load_reference() -> str:
 
 
 def load_project_context(project: str) -> str:
-    """Load project context document."""
-    project_path = CONTEXT_DIR / project / "PROJECT.md"
-    if project_path.exists():
-        with open(project_path, "r", encoding="utf-8") as f:
-            return f.read()
-    return ""
+    """Load project context documents (WALLET_CONTEXT.md + MIGRATION.md)."""
+    context_parts = []
+
+    # Load main domain context
+    context_path = CONTEXT_DIR / project / "WALLET_CONTEXT.md"
+    if context_path.exists():
+        with open(context_path, "r", encoding="utf-8") as f:
+            context_parts.append(f.read())
+
+    # Load migration context
+    migration_path = CONTEXT_DIR / project / "MIGRATION.md"
+    if migration_path.exists():
+        with open(migration_path, "r", encoding="utf-8") as f:
+            context_parts.append(f.read())
+
+    return "\n\n---\n\n".join(context_parts)
 
 
 def get_projects_from_tables(schemas: dict, selected_tables: list) -> set:
@@ -387,8 +397,10 @@ def main():
                             if ref_table != "None":
                                 ref_schema = json.dumps(
                                     all_schemas[ref_table]["definition"], indent=2)
-                            response = generate_schema(client, schema_input, ref_schema)
-                            st.session_state.generated_schema = extract_json_from_response(response)
+                            response = generate_schema(
+                                client, schema_input, ref_schema)
+                            st.session_state.generated_schema = extract_json_from_response(
+                                response)
                         except Exception as e:
                             st.error(f"Error: {e}")
 
@@ -410,7 +422,8 @@ def main():
                             st.rerun()
                     with col2:
                         if st.button("Save to tables/", key="btn_save_schema", use_container_width=True):
-                            filepath = save_schema(table_name, st.session_state.generated_schema)
+                            filepath = save_schema(
+                                table_name, st.session_state.generated_schema)
                             st.success(f"Saved: {filepath}")
                             st.session_state.generated_schema = None
                             st.rerun()
@@ -437,7 +450,8 @@ def main():
         if st.session_state.messages:
             with st.expander("Save chat", expanded=False):
                 default_name = st.session_state.current_chat or ""
-                chat_name = st.text_input("Chat name", value=default_name, key="chat_name_input")
+                chat_name = st.text_input(
+                    "Chat name", value=default_name, key="chat_name_input")
                 if st.button("Save", key="btn_save_chat", use_container_width=True):
                     if chat_name.strip():
                         save_chat(
@@ -461,7 +475,8 @@ def main():
                     if st.button(label, key=f"load_{chat_name}", use_container_width=True):
                         data = load_chat(chat_name)
                         st.session_state.messages = data.get("messages", [])
-                        st.session_state.selected_tables = data.get("tables", [])
+                        st.session_state.selected_tables = data.get(
+                            "tables", [])
                         st.session_state.temp_schema = data.get("temp_schema")
                         st.session_state.current_chat = chat_name
                         st.rerun()
@@ -491,6 +506,18 @@ def main():
     if st.session_state.temp_schema:
         context_parts.append(f"[Temp] {st.session_state.temp_schema['name']}")
     st.caption(f"Current context: {', '.join(context_parts)}")
+
+    # Quick reference for keywords
+    with st.expander("💡 Keywords → Skills", expanded=False):
+        st.markdown("""
+| Keywords | Mode | What it does |
+|----------|------|--------------|
+| `duplicates`, `NULL`, `grain`, `count` | General QA | Basic data quality checks |
+| `new feature`, `validate`, `verify`, `business logic` | Feature Testing | Validate specific business rules |
+| `regression`, `baseline`, `before/after` | Regression | Compare before/after a change |
+| `migration`, `Azure`, `AWS`, `compare` | Migration QA | Cross-environment validation |
+| `standard QA`, `full checklist`, `health check` | **Quick Checklist** | One-click generate all checks |
+        """)
 
     # Chat history
     for msg in st.session_state.messages:
