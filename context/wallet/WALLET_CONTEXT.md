@@ -193,9 +193,8 @@ Balances are **reward values (points/vouchers)**, NOT real cash.
 
 | State | Meaning |
 |-------|---------|
-| `balance_earned` | Reward value earned by the customer |
-| `balance_available` | Reward value allowed to use, subject to rules |
-| `balance_redeemed` | Reward value successfully used (**reconciliation metric**) |
+| `balance_available` | Potential reward value. Triggered when an offer is Saved or received. This is "shadow money" (not yet spendable). |
+| `balance_earned` | Actual spendable balance. The reward has been confirmed and can be redeemed |                                  | `balance_redeemed` | Reward value successfully used (**reconciliation metric**) |
 | `balance_expired` | Reward value expired before use |
 | `balance_void` | Reward value cancelled or invalidated |
 | `balance_transferred_from/to` | Reward value moved between wallets |
