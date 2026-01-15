@@ -43,6 +43,7 @@ Identify table type from schema columns:
 
 ## Key Rules
 
+- **Business risk driven**: Prioritize checks based on wallet domain risks (balance integrity, eligibility, OA/PP/NC conflicts), not generic QA completeness
 - **SCD2 tables**: Always filter `CURRENT_RECORD_IND = 1` unless checking history
 - **PII columns**: Never SELECT directly unless user explicitly requests
 - **Grain column**: Use `table_grain` from schema for uniqueness checks
@@ -165,63 +166,54 @@ Mentor:
 
 ## Migration QA Mode
 
-When user mentions "migration", guide them through the full migration QA process.
+**Read `context/{project}/MIGRATION.md` for migration approach, known limitations, and QA implications.**
 
-**Read `context/{project}/MIGRATION.md` for detailed migration approach and QA implications.**
+### Core Principle: Don't Over-QA
 
-### Environment
-- **Source**: AZURE Snowflake
-- **Target**: AWS Snowflake
-- Schema/table names unchanged
+Migration QA is about **confirming data landed correctly**, not exhaustive validation.
+- Focus on 3-10 core metrics per table
+- Ask before generating for large/complex tables
+- Trust the dbt logic; check the output, not re-validate all business rules
 
-### Migration Approach
-- **Method**: dbt re-run in AWS (NOT direct data copy)
-- **First run**: Full load (`is_incremental() = false`)
-- **Data source**: Same Snowflake source (e.g., `pdb_modelled`)
-- **What changes**: Storage layer only (Azure ADLS → AWS S3)
+### SQL Output Rules
 
-**QA implication**: Differences usually stem from **run timing**, not data errors. Always check `RECORD_START_DATE_TIME` alignment first.
+| Scenario | Output |
+|----------|--------|
+| Independent env comparison | **ONE environment SQL only** + "Run same in AWS" |
+| Same-env staging table join | Full JOIN query (both tables in one SQL) |
 
-### Pre-flight
-Before generating SQL, confirm with user:
+**Never** output two separate SQL blocks for Azure vs AWS comparison.
+
+### Pre-flight (ASK first)
+
+Before generating, confirm:
 1. Table name
-2. Date window / snapshot cutoff
-3. Key metrics to compare (e.g., which balance fields, which dimensions for distribution)
+2. Which core metrics? (suggest 3-12 based on table type, let user confirm)
+3. Date window / filter scope
 
-### Migration Checklist
+For large tables with many columns → **Ask**: "Which metrics matter most for this check?"
 
-| # | Check | Priority | Applies To |
-|---|-------|----------|------------|
-| 1 | Row Count | Must | All |
-| 2 | PK Integrity | Must | All |
-| 3 | Grain Uniqueness | Must | All |
-| 4 | Date/Time Boundary | Must | All |
-| 5 | Key Metrics SUM | Must | Tables with numeric fields |
-| 6 | SCD2 Version Distribution | Must | SCD2 tables only |
-| 7 | Category Distribution | Should | User-confirmed dimensions |
+### Core Checks Only
 
-### Guidance Approach
+| Table Type | Core Checks (P1) |
+|------------|------------------|
+| SCD2 | Row count (current), grain uniqueness |
+| Snapshot | Row count, key balance SUM |
+| Event | Row count, time boundary |
 
-1. Ask which table to QA (read schema from `tables/*.yml`)
-2. Identify table type and applicable checks
-3. **For key metrics and distributions**: Suggest candidates from schema, ask user to confirm
-4. Generate SQL using templates from REFERENCE.md
-5. Output Azure template only + one sentence: "Run the same SQL in AWS by changing SOURCE_ENV to 'AWS_PROD'."
-6. On FAIL: give 2-3 RCA pointers; deeper analysis only on request
+Add distribution checks **only if user requests** or business-critical dimension.
 
-### Wallet-Specific Notes
+### Known Limitations
 
-- `balance_redeemed` is the reconciliation anchor
-- Multiple balance fields exist - confirm which ones matter for the check
-- `wallet_type` (OA/PP/NC) and `wallet_eligibility_flag` affect counts/sums
-- Event tables: check `EVENT_TYPE` distribution
+See `MIGRATION.md` for AWS gaps (NON-CUSTOMER timing, manual updates). Factor these into RCA before flagging issues.
 
 ### Results Table
 ```
-prod_wallet.work.zz_qa_migration_test_results
+work.zz_qa_migration_comparison_results
 ```
-Columns: RUN_ID, SOURCE_ENV, TABLE_NAME, TEST_CATEGORY, TEST_NAME,
-         DIMENSION_NAME, METRIC_VALUE, STATUS, DETAILS, NOTES
+Columns: RUN_ID, RUN_DATE, TABLE_NAME, TEST_CATEGORY, TEST_NAME,
+         DIMENSION_NAME, AZURE_VALUE, AWS_VALUE, VARIANCE_VALUE,
+         VARIANCE_PCT, MATCH_STATUS, NOTES
 
 ---
 
