@@ -40,6 +40,7 @@ The Wallet data platform is migrating from Azure to AWS cloud environment.
 | Incremental vs full | Azure has incremental history, AWS is fresh full load | Compare `MIN(RECORD_START_DATE_TIME)` |
 | Late-arriving source records | Records added to source after Azure run | Compare distinct grain key counts |
 | Timezone/cutoff drift | Different run schedules | Compare date boundaries |
+| **AWS manual updates** | Data engineers sometimes apply manual fixes in AWS | `RECORD_START_DATE_TIME` may not match exactly |
 
 ## First Check on Mismatch: Timing Alignment
 
@@ -55,6 +56,15 @@ WHERE CURRENT_RECORD_IND = 1;
 ```
 
 If timestamps differ significantly, the source data changed between runs - this explains most "drift."
+
+## Known AWS Limitations (NON-CUSTOMER)
+
+| Gap Type | Cause |
+|----------|-------|
+| PDB→MATRIXX timing | Multi-day batch load missed transient records |
+| Microsite late arrivals | NON-CUSTOMER created near cutoff (before 18:00) not yet in AWS |
+
+> AWS NON-CUSTOMER count may be lower than Azure due to load timing windows.
 
 ## Migration QA Priority Metrics
 

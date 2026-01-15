@@ -25,7 +25,7 @@
       "Billing_Account_Number": {"type": "VARCHAR", "pii": "YES"},
       "Primary_Contact_Number": {"type": "VARCHAR", "pii": "YES"},
       "Customer_Segment": {"type": "VARCHAR", "desc": "e.g., Consumer."},
-      "Service_Type": {"type": "VARCHAR", "desc": "On Account or Prepay."},
+      "Wallet_Type": {"type": "VARCHAR", "desc": "On Account, Prepay or Non-customer."},
       "Service_Status_Name": {"type": "VARCHAR", "enum": ["Active", "Deleted", "Suspended", "Preactive", "Ported Out", "Inactive", "Unknown"]},
       "Join_Date": {"type": "DATE"},
       "Service_First_Activation_date": {"type": "DATE"},
