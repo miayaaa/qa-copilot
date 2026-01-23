@@ -72,7 +72,7 @@ SELECT SUM({METRIC_COL}) FROM {TABLE} WHERE D_DATE_KEY = '{MONTH}';
 
 ### Results Table
 ```sql
-work.zz_qa_migration_comparison_results
+work.zzmy_qa_migration_comparison_results
 -- Columns: RUN_ID, RUN_DATE, TABLE_NAME, TEST_CATEGORY, TEST_NAME,
 --          DIMENSION_NAME, AZURE_VALUE, AWS_VALUE, VARIANCE_VALUE,
 --          VARIANCE_PCT, MATCH_STATUS, NOTES
@@ -80,7 +80,7 @@ work.zz_qa_migration_comparison_results
 
 ### Core Checks (INSERT)
 ```sql
-INSERT INTO work.zz_qa_migration_comparison_results
+INSERT INTO work.zzmy_qa_migration_comparison_results
 (RUN_ID, TABLE_NAME, TEST_CATEGORY, TEST_NAME, DIMENSION_NAME, AZURE_VALUE, AWS_VALUE, VARIANCE_VALUE, VARIANCE_PCT, MATCH_STATUS, NOTES)
 
 WITH azure AS (
@@ -101,7 +101,7 @@ FROM azure, aws;
 
 ### Category Distribution (INSERT)
 ```sql
-INSERT INTO work.zz_qa_migration_comparison_results
+INSERT INTO work.zzmy_qa_migration_comparison_results
 WITH azure AS (
     SELECT {DIM_COL} AS dim, COUNT(*) AS cnt FROM {AZURE_TABLE} WHERE {FILTER} GROUP BY {DIM_COL}
 ),
@@ -168,6 +168,111 @@ If `latest` timestamps differ → source data changed between runs (expected dri
 | 2 | Filter alignment | CURRENT_RECORD_IND, eligibility, date filters differ |
 | 3 | Key population | Count distinct grain keys to isolate new/missing records |
 | 4 | Dimension split | Break down by wallet_type to isolate drift source |
+
+---
+
+## Regression Testing Templates
+
+### Baseline Table
+```sql
+-- work.zzmy_qa_regression_baseline
+-- Columns: baseline_id, baseline_date, table_name, check_type,
+--          dimension_name, dimension_value, metric_value, filter_applied
+```
+
+### Save Baseline (One Table)
+```sql
+-- Save baseline for {TABLE}
+INSERT INTO work.zzmy_qa_regression_baseline
+(baseline_id, baseline_date, table_name, check_type, dimension_name, dimension_value, metric_value, filter_applied, created_by, created_at)
+-- Row count
+SELECT MD5('{TABLE}' || CURRENT_TIMESTAMP()), CURRENT_TIMESTAMP(),
+       '{SCHEMA}.{TABLE}', 'row_count', NULL, NULL, COUNT(*),
+       '{FILTER}', CURRENT_USER(), CURRENT_TIMESTAMP()
+FROM {SCHEMA}.{TABLE} WHERE {FILTER}
+UNION ALL
+-- Category distribution
+SELECT MD5('{TABLE}' || CURRENT_TIMESTAMP()), CURRENT_TIMESTAMP(),
+       '{SCHEMA}.{TABLE}', 'category_dist', '{DIM_COL}', {DIM_COL}::VARCHAR, COUNT(*),
+       '{FILTER}', CURRENT_USER(), CURRENT_TIMESTAMP()
+FROM {SCHEMA}.{TABLE} WHERE {FILTER}
+GROUP BY {DIM_COL};
+```
+
+### Compare to Baseline
+```sql
+-- Compare current vs baseline for {TABLE}
+WITH baseline AS (
+    SELECT * FROM work.zzmy_qa_regression_baseline
+    WHERE baseline_id = '{BASELINE_ID}'
+),
+current_row_count AS (
+    SELECT 'row_count' AS check_type, NULL AS dimension_name, NULL AS dimension_value, COUNT(*) AS metric_value
+    FROM {SCHEMA}.{TABLE} WHERE {FILTER}
+),
+current_dist AS (
+    SELECT 'category_dist' AS check_type, '{DIM_COL}' AS dimension_name, {DIM_COL}::VARCHAR AS dimension_value, COUNT(*) AS metric_value
+    FROM {SCHEMA}.{TABLE} WHERE {FILTER}
+    GROUP BY {DIM_COL}
+),
+current_metrics AS (
+    SELECT * FROM current_row_count UNION ALL SELECT * FROM current_dist
+)
+SELECT
+    b.table_name,
+    c.check_type,
+    c.dimension_name,
+    c.dimension_value,
+    b.metric_value AS baseline_value,
+    c.metric_value AS current_value,
+    (c.metric_value - b.metric_value) AS variance,
+    ROUND(100.0 * (c.metric_value - b.metric_value) / NULLIF(b.metric_value, 0), 2) AS variance_pct,
+    CASE
+        WHEN ABS(c.metric_value - b.metric_value) / NULLIF(b.metric_value, 0) > 0.01 THEN 'FAIL'
+        WHEN ABS(c.metric_value - b.metric_value) / NULLIF(b.metric_value, 0) > 0.001 THEN 'WARN'
+        ELSE 'PASS'
+    END AS status
+FROM baseline b
+FULL OUTER JOIN current_metrics c
+  ON b.check_type = c.check_type
+  AND IFNULL(b.dimension_name,'') = IFNULL(c.dimension_name,'')
+  AND IFNULL(b.dimension_value,'') = IFNULL(c.dimension_value,'')
+ORDER BY status DESC, check_type, dimension_value;
+```
+
+### SCD2 History Immutability
+```sql
+-- Check historical records unchanged (current_record_ind = 0)
+-- Requires baseline snapshot table: {TABLE}_baseline
+WITH baseline_hash AS (
+    SELECT {GRAIN}, version_no,
+           MD5(CONCAT_WS('|', {COMPARE_COLS})) AS row_hash
+    FROM {TABLE}_baseline WHERE current_record_ind = 0
+),
+current_hash AS (
+    SELECT {GRAIN}, version_no,
+           MD5(CONCAT_WS('|', {COMPARE_COLS})) AS row_hash
+    FROM {TABLE} WHERE current_record_ind = 0
+)
+SELECT
+    'history_immutable' AS check_type,
+    COUNT(CASE WHEN b.row_hash IS NULL THEN 1 END) AS new_records,
+    COUNT(CASE WHEN c.row_hash IS NULL THEN 1 END) AS deleted_records,
+    COUNT(CASE WHEN b.row_hash IS NOT NULL AND c.row_hash IS NOT NULL AND b.row_hash != c.row_hash THEN 1 END) AS modified_records,
+    CASE WHEN COUNT(CASE WHEN b.row_hash IS NULL OR c.row_hash IS NULL OR b.row_hash != c.row_hash THEN 1 END) = 0
+         THEN 'PASS' ELSE 'FAIL' END AS status
+FROM baseline_hash b
+FULL OUTER JOIN current_hash c
+  ON b.{GRAIN} = c.{GRAIN} AND b.version_no = c.version_no;
+```
+
+### Quick Baseline Commands
+
+| Table Type | Default Checks | Default Filter |
+|------------|----------------|----------------|
+| SCD2 | row_count, category_dist(wallet_type, action) | `current_record_ind = 1` |
+| Snapshot | row_count, aggregate_sum(balance*) | `d_date_key = today` |
+| Incremental | row_count by date | `d_date_key >= cutoff` |
 
 ---
 
